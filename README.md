@@ -33,12 +33,14 @@ Atom feeds require every entry to have a title. For a social media service where
    - Build a (very thin) API wrapper for atproto calls so that I don't need to do so much string concatenation
    - Separate the data fetches from the processing from the feed generation more cleanly
 
-4. Find a way to make the `Fetch` requests asynchronously, to improve load times
-5. Handle errors better (also pretty disorganized right now)
-6. Cache user profiles in a sqlite database so that fetches for those can be skipped most of the time (or just in memory?)
-7. Implement rate-limiting based on the metadata returned in headers from Bluesky about how many requests are left in this period
-8. Use Redbean's benchmarking facilities to help optimize performance
-9. Tweak the XSLT template to fix the stretched images, etc.
+4. [JSON Feed](https://www.jsonfeed.org) output support (enables profile pictures to show up as feed author icons, at least in NetNewsWire)
+5. Find a way to make the `Fetch` requests asynchronously, to improve load times
+6. Handle errors better (also pretty disorganized right now)
+7. Cache user profiles in a sqlite database so that fetches for those can be skipped most of the time (or just in memory?)
+8. Implement rate-limiting based on the metadata returned in headers from Bluesky about how many requests are left in this period
+9. Use Redbean's benchmarking facilities to help optimize performance
+10. Tweak the XSLT template to fix the stretched images, etc.
+11. When there is a longer reply chain, link to skyview.social instead of just saying "(more replies)"
 
 # Support
 
