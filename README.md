@@ -42,6 +42,7 @@ Atom feeds require every entry to have a title. For a social media service where
 10. Tweak the XSLT template to fix the stretched images, etc.
 11. ~~When there is a longer reply chain, link to skyview.social instead of just saying "(more replies)"~~
 12. ~~Support quote posts.~~
+13. Enhance embed/reply code to show display name and handle of the author of embedded/replied text
 
 # Support
 
