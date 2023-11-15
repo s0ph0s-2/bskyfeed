@@ -3,9 +3,73 @@
   <head>
     <meta charset="utf-8" />
     <title>Bluesky Feed</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        font-family: sans-serif;
+        background-color: lightgray;
+        margin: 2em auto;
+      }
+      form > * {
+        display: block;
+        margin: 0.3em;
+      }
+      body {
+        max-width: 22em;
+      }
+      .backwards {
+        display: flex;
+        flex-direction: row-reverse;
+      }
+      .backwards input {
+        margin-left: 1em;
+      }
+      @media (prefers-color-scheme: dark) {
+        html,
+        body {
+          color: #eee;
+          background-color: #000;
+        }
+      }
+    </style>
   </head>
   <body>
     <h1>Bluesky Feed</h1>
-    <p>Placeholder text</p>
+    <p>Make RSS feeds for Bluesky users' posts.</p>
+    <form action="/generate.lua" method="POST">
+      <label>
+        Bluesky DID or handle:
+        <input
+          type="text"
+          name="identifier"
+          placeholder="user.bsky.social"
+          required
+        />
+      </label>
+      <label>
+        <input type="checkbox" name="no_replies" disabled />
+        Exclude reply posts? (not implemented yet)
+      </label>
+      <label>
+        <input type="checkbox" name="no_reposts" disabled />
+        Exclude reposts? (not implemented yet)
+      </label>
+      <span>Feed type:</span>
+      <label>
+        <input type="radio" name="feed_type" value="rss" checked required />
+        RSS
+      </label>
+      <label>
+        <input type="radio" name="feed_type" value="jsonfeed" disabled />
+        JSON Feed (not implemented yet)
+      </label>
+      <div class="backwards">
+        <input type="submit" value="Generate" />
+        <input type="reset" />
+      </div>
+    </form>
   </body>
 </html>

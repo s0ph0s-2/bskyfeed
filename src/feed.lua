@@ -58,14 +58,15 @@ local function mapImagesEmbed(item, embed, result)
             image.image.mimeType
         )
         if ok then
-            local imgTag = xml.tag(
-                "img", true, {
+            local attrs = {
                     alt = image.alt,
-                    height = image.aspectRatio.height,
-                    width = image.aspectRatio.width,
                     src = src
-                }
-            )
+            }
+            if image.aspectRatio then
+                attrs.width = image.aspectRatio.width
+                attrs.height = image.aspectRatio.height
+            end
+            local imgTag = xml.tag("img", true, attrs)
             table.insert(result, imgTag)
         else
             table.insert(result, xml.tag(
@@ -196,19 +197,6 @@ local function generateItems(records, profileData)
     return table.concat(items)
 end
 
-local function getHandleAndDid(identifier)
-    if not identifier then
-        return nil
-    end
-    local ok, repoDescription = pcall(bsky.xrpc.getJsonOrErr, "com.atproto.repo.describeRepo", {
-        repo = identifier
-    })
-    if not ok then
-        return nil, nil
-    end
-    return repoDescription.handle, repoDescription.did
-end
-
 local function getProfile(user)
     local ok, profileData = pcall(bsky.xrpc.getJsonOrErr, "com.atproto.repo.listRecords", {
         repo = user,
@@ -230,7 +218,7 @@ local function getProfile(user)
         return unknownUser
     end
     local p = profileData.records[1]
-    local handle, did = getHandleAndDid(user)
+    local handle, did = bsky.user.getHandleAndDid(user)
     if not handle then
         return unknownUser
     end
@@ -327,19 +315,29 @@ local function handle()
     local linkNode = xml.text("https://bsky.app/profile/" .. user)
     Write(
         xml.tag(
-            "rss", false, { version = "2.0" },
+            "rss", false, {
+                version = "2.0",
+                ["xmlns:atom"] = "http://www.w3.org/2005/Atom"
+            },
             xml.tag(
                 "channel", false,
                 xml.tag("link", false, linkNode),
                 xml.tag("title", false, titleNode),
                 xml.tag("lastBuildDate", false, xml.text(FormatHttpDateTime(unixsec))),
-                xml.tag("description", false, xml.text("Posts on Bluesky by " .. user)),
+                xml.tag("description", false, xml.text("Posts on Bluesky by " .. profileData.displayName)),
                 xml.tag("generator", false, xml.text(User_Agent)),
                 xml.tag(
                     "image", false,
                     xml.tag("url", false, xml.text(profileData.avatar)),
                     xml.tag("title", false, titleNode),
                     xml.tag("link", false, linkNode)
+                ),
+                xml.tag(
+                    "atom:link", true, {
+                        href = GetUrl(),
+                        rel = "self",
+                        type = "application/rss+xml"
+                    }
                 ),
                 generateItems(bodyTable.records, profileData)
             )
@@ -360,5 +358,8 @@ local function returnError(err)
     end
 end
 
-xpcall(handle, returnError)
+local ok, result = xpcall(handle, debug.traceback)
+if not ok then
+    returnError(result)
+end
 -- handle()

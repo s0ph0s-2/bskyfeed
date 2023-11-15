@@ -246,6 +246,19 @@ local function getDidFromUri(uri)
     return m, did
 end
 
+local function getHandleAndDid(identifier)
+    if not identifier then
+        return nil
+    end
+    local ok, repoDescription = pcall(getJsonOrErr, "com.atproto.repo.describeRepo", {
+        repo = identifier
+    })
+    if not ok then
+        return nil, nil
+    end
+    return repoDescription.handle, repoDescription.did
+end
+
 return {
     xrpc = {
         get = get,
@@ -264,5 +277,8 @@ return {
     },
     did = {
         fromUri = getDidFromUri
+    },
+    user = {
+        getHandleAndDid = getHandleAndDid
     }
 }

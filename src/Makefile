@@ -10,7 +10,7 @@ FILES := .init.lua \
 	$(ABOUT_FILE) \
 	rss.xsl \
     feed.lua \
-    generate.lua \
+	generate.lua \
     index.html
 
 build: $(OUTPUT)
