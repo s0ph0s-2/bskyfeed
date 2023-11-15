@@ -21,7 +21,7 @@ clean:
 .PHONY: build clean
 
 $(ABOUT_FILE):
-	echo "return { NAME = '$(OUTPUT)', VERSION = '$(VERSION)', REDBEAN_VERSION = '$(REDBEAN_VERSION)'}" > "$@"
+	echo "return { NAME = '$(OUTPUT)', VERSION = '$(VERSION)', REDBEAN_VERSION = '$(REDBEAN_VERSION)' }" > "$@"
 
 $(OUTPUT): $(REDBEAN) $(FILES)
 	rm -f $@
