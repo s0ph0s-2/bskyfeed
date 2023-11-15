@@ -85,7 +85,7 @@ end
 
 local embedMap = {
     ["app.bsky.embed.external"] = mapExternalEmbed,
-    -- Quote tweet? ["app.bsky.embed.record"] = mapRecordEmbed,
+    -- See below for mapRecordEmbed
     ["app.bsky.embed.images"] = mapImagesEmbed
 }
 
@@ -165,13 +165,28 @@ local function renderItemText(item, profileData)
         local embed = item.value.embed
         local embedType = embed["$type"]
         if embedMap[embedType] then
-            embedMap[embedType](item, embed, result)
+            embedMap[embedType](item, embed, result, authors)
         else
             print("Unrecognized embed type: " .. embedType)
         end
     end
     return reprocessNewlines(table.concat(result)), authors
 end
+
+local function mapRecordEmbed(_, embed, result, authors)
+    local embedPost = embed.value
+    local embedAuthor = embed.value.authorProfile
+    local embeddedPost, embedAuthors = renderItemText(embedPost, embedAuthor)
+    for _, author in ipairs(embedAuthors) do
+        table.insert(authors, author)
+    end
+    table.insert(result, xml.tag("blockquote", false, embeddedPost))
+end
+
+-- This needs to be done down here because mapRecordEmbed relies on the
+-- renderItemText function being defined already, which is a circular
+-- dependency.
+embedMap["app.bsky.embed.record"] = mapRecordEmbed
 
 local function generateItems(records, profileData)
     local items = {}
@@ -276,6 +291,39 @@ local function prefetchReplies(records)
     return true
 end
 
+local function prefetchQuotePosts(records)
+    for _, item in ipairs(records) do
+        local embed = item.value.embed
+        if embed and embed["$type"] == "app.bsky.embed.record" then
+            local ok, method, params = bsky.uri.post.toXrpcParams(embed.record.uri)
+            if not ok then
+                print(method)
+                return false
+            end
+            local ok3, quote_data = pcall(bsky.xrpc.getJsonOrErr, method, params)
+            if not ok3 then
+                embed.error = "(This post has been deleted)"
+            else
+                if quote_data == nil then
+                    return false
+                else
+                    local ok2, quoteProfileDid = bsky.did.fromUri(quote_data.uri)
+                    if not ok2 then
+                        return false
+                    end
+                    local quoteProfile = getProfile(quoteProfileDid)
+                    if not quoteProfile then
+                        return false
+                    end
+                    embed.value = quote_data
+                    embed.value.authorProfile = quoteProfile
+                end
+            end
+        end
+    end
+    return true
+end
+
 local function handle()
     if not HasParam("user") then
         SetStatus(400, "Missing required parameter 'user'")
@@ -304,6 +352,10 @@ local function handle()
         bodyTable.records = postsWithoutReplies
     else
         if not prefetchReplies(bodyTable.records) then
+            return
+        end
+        if not prefetchQuotePosts(bodyTable.records) then
+
             return
         end
     end

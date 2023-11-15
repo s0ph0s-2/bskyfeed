@@ -41,7 +41,7 @@ Atom feeds require every entry to have a title. For a social media service where
 9. Use Redbean's benchmarking facilities to help optimize performance
 10. Tweak the XSLT template to fix the stretched images, etc.
 11. When there is a longer reply chain, link to skyview.social instead of just saying "(more replies)"
-12. Support quote posts.
+12. ~~Support quote posts.~~
 
 # Support
 
