@@ -95,7 +95,7 @@ local function reprocessNewlines(textContent)
     return breaks
 end
 
-local function renderItemText(item, profileData)
+local function renderItemText(item, profileData, itemUri)
     local result = {}
     local authors = {}
     table.insert(authors, string.format("%s (%s)", profileData.displayName, profileData.handle))
@@ -107,7 +107,20 @@ local function renderItemText(item, profileData)
             if not error then
                 table.insert(result, xml.tag(
                     "blockquote", false, xml.tag(
-                        "i", false, xml.text("(more replies)")
+                        "i", false,
+                        xml.text("("),
+                        xml.tag("a", false, {
+                            href = bsky.uri.assemble(
+                                "https",
+                                "skyview.social",
+                                "/",
+                                {
+                                    url = itemUri
+                                })
+                            },
+                            xml.text("view full reply chain on skyview.social")
+                        ),
+                        xml.text(")")
                     )
                 ))
             end
@@ -118,7 +131,7 @@ local function renderItemText(item, profileData)
             ))
             print("Error while trying to render " .. EncodeJson(item))
         else
-            local quoteText, quoteAuthors = renderItemText(reply.parent, reply.parent.authorProfile)
+            local quoteText, quoteAuthors = renderItemText(reply.parent, reply.parent.authorProfile, itemUri)
             local quote = xml.tag(
                 "blockquote", false,
                 quoteText
@@ -176,7 +189,15 @@ end
 local function mapRecordEmbed(_, embed, result, authors)
     local embedPost = embed.value
     local embedAuthor = embed.value.authorProfile
-    local embeddedPost, embedAuthors = renderItemText(embedPost, embedAuthor)
+    local ok, embedUri = bsky.uri.post.toHttp(embedPost.uri)
+    if not ok then
+        embedUri = embedPost.uri
+    end
+    local embeddedPost, embedAuthors = renderItemText(
+        embedPost,
+        embedAuthor,
+        embedUri
+    )
     for _, author in ipairs(embedAuthors) do
         table.insert(authors, author)
     end
@@ -196,7 +217,7 @@ local function generateItems(records, profileData)
             uri = item.uri
         end
         local pubDate = date(item.value.createdAt):fmt("${rfc1123}")
-        local itemText, itemAuthors = renderItemText(item, profileData)
+        local itemText, itemAuthors = renderItemText(item, profileData, uri)
         local authors = ""
         for _, author in ipairs(itemAuthors) do
             authors = authors .. xml.tag(
