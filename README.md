@@ -18,7 +18,7 @@ Atom feeds require every entry to have a title. For a social media service where
 2. `cd bskyfeed`
 3. `make -C src`
 4. Run `bskyfeed.com`
-5. Make requests to `http://localhost:8080/feed.lua?user=$HANDLE_HERE`
+5. Open `http://localhost:8080`
 
 # Planned enhancements
 
@@ -26,7 +26,7 @@ Atom feeds require every entry to have a title. For a social media service where
 
    - Somewhat more complicated than it seems, because I want to make sure the feed still has 10 items in it after the filtering, if possible.
 
-2. Build the landing page that explains what it is and offers a convenient text box to make feed URLs
+2. ~~Build the landing page that explains what it is and offers a convenient text box to make feed URLs~~
 3. Refactor the spaghetti into something more maintainable
 
    - ~~Move library functions out of `feed.lua` and into modules~~
@@ -40,7 +40,7 @@ Atom feeds require every entry to have a title. For a social media service where
 8. Implement rate-limiting based on the metadata returned in headers from Bluesky about how many requests are left in this period
 9. Use Redbean's benchmarking facilities to help optimize performance
 10. Tweak the XSLT template to fix the stretched images, etc.
-11. When there is a longer reply chain, link to skyview.social instead of just saying "(more replies)"
+11. ~~When there is a longer reply chain, link to skyview.social instead of just saying "(more replies)"~~
 12. ~~Support quote posts.~~
 
 # Support
