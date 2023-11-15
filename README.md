@@ -29,8 +29,8 @@ Atom feeds require every entry to have a title. For a social media service where
 2. Build the landing page that explains what it is and offers a convenient text box to make feed URLs
 3. Refactor the spaghetti into something more maintainable
 
-   - Move library functions out of `feed.lua` and into modules
-   - Build a (very thin) API wrapper for atproto calls so that I don't need to do so much string concatenation
+   - ~~Move library functions out of `feed.lua` and into modules~~
+   - ~~Build a (very thin) API wrapper for atproto calls so that I don't need to do so much string concatenation~~
    - Separate the data fetches from the processing from the feed generation more cleanly
 
 4. [JSON Feed](https://www.jsonfeed.org) output support (enables profile pictures to show up as feed author icons, at least in NetNewsWire)

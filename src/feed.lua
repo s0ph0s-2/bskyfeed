@@ -1,128 +1,28 @@
-local date = require("date")
+local date = require "date"
+local xml = require "xml"
+local bsky = require "bsky"
+local about = require "about"
 
--- local HOST = "bskyatom.s0ph0s.dog"
+local User_Agent = string.format(
+    "%s/%s; redbean/%s",
+    about.NAME,
+    about.VERSION,
+    about.REDBEAN_VERSION
+)
 
-local function escapeAttr(value)
-    return string.gsub(value, '["\']', { ["'"] = "&#39;", ['"'] = "&quot;" })
-end
-
-local function text(value)
-    return EscapeHtml(value)
-end
-
-local function cdata(value)
-    local no_gt = string.gsub(value, "]]>", "]]&gt;")
-    return string.format("<![CDATA[%s]]>", no_gt)
-end
-
-local function tag(tagName, selfClosing, attrsOrFirstChild, ...)
-    local children = { ... }
-
-    if not tagName or type(tagName) ~= "string" or #tagName == 0 then
-        error("tag: tagName is not a string (or is emptystr)")
-    end
-    if string.match(tagName, "%s") then
-        error("tag: tagName cannot contain whitespace")
-    end
-    if selfClosing and (#children > 0 or type(attrsOrFirstChild) == "string") then
-        error("tag: self closing tags cannot have children")
-    end
-
-    local attrs = {}
-    if type(attrsOrFirstChild) == "string" then
-        table.insert(children, 1, attrsOrFirstChild)
-        attrsOrFirstChild = {}
-    end
-    if attrsOrFirstChild ~= nil and type(attrsOrFirstChild) == "table" then
-        for key, value in pairs(attrsOrFirstChild) do
-            if type(value) ~= "boolean" then
-                table.insert(
-                    attrs,
-                    string.format(' %s="%s"', key, escapeAttr(value))
-                )
-            elseif value then
-                table.insert(attrs, " " .. key)
-            end
-        end
-    end
-
-    local opening = string.format("<%s%s", tagName, table.concat(attrs))
-    if selfClosing then
-        return opening .. "/>"
-    else
-        return string.format("%s>%s</%s>", opening, table.concat(children), tagName)
-    end
-end
-
-local function atUriToHttpUri(string)
-    local m, did, post_id = AT_URI:search(string) -- luacheck: ignore
-    if m then
-        return "ok", string.format("https://bsky.app/profile/%s/post/%s", did, post_id)
-    else
-        return nil, did
-    end
-end
-
-local function atPostUriToXrpcPostUri(string)
-    local m, did, post_id = AT_URI:search(string) -- luacheck: ignore
-    if m then
-        return "ok", string.format(
-            "https://bsky.social/xrpc/com.atproto.repo.getRecord?repo=%s&collection=app.bsky.feed.post&rkey=%s",
-            did,
-            post_id
-        )
-    else
-        return nil, did
-    end
-end
-
-local function split(input_str, split_point)
-    local start_idx, end_idx = string.find(input_str, split_point, 1, true)
-    return string.sub(input_str, 1, start_idx), string.sub(input_str, end_idx + 1)
-end
-
-local function makeFeedImageHttpUri(post_atproto_uri, image_id, content_type)
-    local m, did, _ = AT_URI:search(post_atproto_uri) -- luacheck: ignore
-    if m then
-        local _, format = split(content_type, "/")
-        return m, string.format(
-            "https://cdn.bsky.app/img/feed_thumbnail/plain/%s/%s@%s",
-            did,
-            image_id,
-            format
-        )
-    else
-        return nil, did
-    end
-end
-
-local function makeProfileImageHttpUri(did, image_id, content_type)
-    local _, format = split(content_type, "/")
-    return string.format(
-        "https://cdn.bsky.app/img/avatar/plain/%s/%s@%s",
-        did,
-        image_id,
-        format
-    )
-end
-
-local function getDidFromUri(uri)
-    local m, did, _ = AT_URI:search(uri) -- luacheck: ignore
-    return m, did
-end
 
 local function mapMentionFacet(item, facet, feature, result)
-    local link = tag(
+    local link = xml.tag(
         "a", false, { href = "https://bsky.app/profile/" .. feature.did },
-        text(string.sub(item.value.text, facet.index.byteStart + 1, facet.index.byteEnd))
+        xml.text(string.sub(item.value.text, facet.index.byteStart + 1, facet.index.byteEnd))
     )
     table.insert(result, link)
 end
 
 local function mapLinkFacet(item, facet, feature, result)
-    local link = tag(
+    local link = xml.tag(
         "a", false, { href = feature.uri },
-        text(string.sub(item.value.text, facet.index.byteStart + 1, facet.index.byteEnd))
+        xml.text(string.sub(item.value.text, facet.index.byteStart + 1, facet.index.byteEnd))
     )
     table.insert(result, link)
 end
@@ -133,32 +33,32 @@ local facetMap = {
 }
 
 local function mapExternalEmbed(_, embed, result)
-    table.insert(result, tag("hr", true))
-    local preview = tag(
+    table.insert(result, xml.tag("hr", true))
+    local preview = xml.tag(
         "div", false,
-        tag(
+        xml.tag(
             "a", false, { href = embed.external.uri },
-            tag("h3", false, text(embed.external.title)),
-            tag(
+            xml.tag("h3", false, xml.text(embed.external.title)),
+            xml.tag(
                 "span", false, { style = "font-size:0.75rem" },
-                text(embed.external.uri)
+                xml.text(embed.external.uri)
             )
         ),
-        tag("p", false, text(embed.external.description))
+        xml.tag("p", false, xml.text(embed.external.description))
     )
     table.insert(result, preview)
 end
 
 local function mapImagesEmbed(item, embed, result)
-    table.insert(result, tag("hr", true))
+    table.insert(result, xml.tag("hr", true))
     for _, image in ipairs(embed.images) do
-        local ok, src = makeFeedImageHttpUri(
+        local ok, src = bsky.uri.image.feedHttp(
             item.uri,
             image.image.ref["$link"],
             image.image.mimeType
         )
         if ok then
-            local imgTag = tag(
+            local imgTag = xml.tag(
                 "img", true, {
                     alt = image.alt,
                     height = image.aspectRatio.height,
@@ -168,9 +68,9 @@ local function mapImagesEmbed(item, embed, result)
             )
             table.insert(result, imgTag)
         else
-            table.insert(result, tag(
+            table.insert(result, xml.tag(
                 "p", false,
-                text(
+                xml.text(
                     "Broken image: Post("
                     .. item.uri
                     .. "); Image("
@@ -203,21 +103,21 @@ local function renderItemText(item, profileData)
         if reply.parent.error or not reply.parent.authorProfile then
             local error = reply.parent.error
             if not error then
-                table.insert(result, tag(
-                    "blockquote", false, tag(
-                        "i", false, text("(more replies)")
+                table.insert(result, xml.tag(
+                    "blockquote", false, xml.tag(
+                        "i", false, xml.text("(more replies)")
                     )
                 ))
             end
-            table.insert(result, tag(
-                "blockquote", false, tag(
-                    "i", false, text(reply.parent.error)
+            table.insert(result, xml.tag(
+                "blockquote", false, xml.tag(
+                    "i", false, xml.text(reply.parent.error)
                 )
             ))
             print("Error while trying to render " .. EncodeJson(item))
         else
             local quoteText, quoteAuthor = renderItemText(reply.parent, reply.parent.authorProfile)
-            local quote = tag(
+            local quote = xml.tag(
                 "blockquote", false,
                 quoteText
             )
@@ -272,70 +172,49 @@ end
 local function generateItems(records, profileData)
     local items = {}
     for _, item in pairs(records) do
-        local ok, uri = atUriToHttpUri(item.uri)
+        local ok, uri = bsky.uri.post.toHttp(item.uri)
         if not ok then
             uri = item.uri
         end
         local pubDate = date(item.value.createdAt):fmt("${rfc1123}")
         local itemText, author = renderItemText(item, profileData)
-        table.insert(items, tag(
+        table.insert(items, xml.tag(
             "item", false,
-            tag("link", false, text(uri)),
-            tag(
+            xml.tag("link", false, xml.text(uri)),
+            xml.tag(
                 "description", false,
-                cdata(itemText)
+                xml.cdata(itemText)
             ),
-            tag("pubDate", false, text(pubDate)),
-            tag(
+            xml.tag("pubDate", false, xml.text(pubDate)),
+            xml.tag(
                 "guid", false, { isPermaLink = "true" },
-                text(uri)
+                xml.text(uri)
             ),
-            tag("author", false, text(author))
+            xml.tag("author", false, xml.text(author))
         ))
     end
     return table.concat(items)
-end
-
-local function fetchDecodeBskyUri(uri, substituteTable)
-    local failHard = false
-    if substituteTable == nil then
-        failHard = true
-    end
-    local status, _, body = Fetch(uri)
-    if status ~= 200 and failHard then
-        SetStatus(503, "Bluesky API error")
-        SetHeader("Content-Type", "application/json")
-        SetHeader("X-Bsky-Uri", uri)
-        Write(body)
-        return nil
-    elseif status ~= 200 and not failHard then
-        return substituteTable
-    end
-    return DecodeJson(body)
 end
 
 local function getHandleAndDid(identifier)
     if not identifier then
         return nil
     end
-    local descriptionUri = (
-        "https://bsky.social/xrpc/com.atproto.repo.describeRepo?repo="
-        .. identifier
-    )
-    local repoDescription = fetchDecodeBskyUri(descriptionUri, { handle = "missing", did = "missing" })
-    if not repoDescription then
+    local ok, repoDescription = pcall(bsky.xrpc.getJsonOrErr, "com.atproto.repo.describeRepo", {
+        repo = identifier
+    })
+    if not ok then
         return nil, nil
     end
     return repoDescription.handle, repoDescription.did
 end
 
 local function getProfile(user)
-    local profileUri = (
-        "https://bsky.social/xrpc/com.atproto.repo.listRecords?repo="
-        .. user
-        .. "&limit=1&collection=app.bsky.actor.profile"
-    )
-    local profileData = fetchDecodeBskyUri(profileUri, "error")
+    local ok, profileData = pcall(bsky.xrpc.getJsonOrErr, "com.atproto.repo.listRecords", {
+        repo = user,
+        limit = 1,
+        collection = "app.bsky.actor.profile"
+    })
     local unknownUser = {
         displayName = "Unknown User",
         description = "This user couldn't be found",
@@ -344,10 +223,7 @@ local function getProfile(user)
         did = user
     }
 
-    if not profileData then
-        return unknownUser
-    end
-    if profileData == "error" then
+    if not ok then
         return unknownUser
     end
     if #profileData.records ~= 1 then
@@ -358,7 +234,7 @@ local function getProfile(user)
     if not handle then
         return unknownUser
     end
-    local avatarUri = makeProfileImageHttpUri(did, p.value.avatar.ref["$link"], p.value.avatar.mimeType)
+    local avatarUri = bsky.uri.image.profileHttp(did, p.value.avatar.ref["$link"], p.value.avatar.mimeType)
     local justTheGoodParts = {
         displayName = p.value.displayName,
         description = p.value.description,
@@ -374,35 +250,36 @@ local function prefetchReplies(records)
         local reply = item.value.reply
         if reply then
             -- TODO: also get root?
-            local ok, parent_uri = atPostUriToXrpcPostUri(reply.parent.uri)
+            local ok, method, params = bsky.uri.post.toXrpcParams(reply.parent.uri)
             if not ok then
-                print(parent_uri)
+                print(method)
                 return false
             end
-            local parent_data = fetchDecodeBskyUri(parent_uri, "error")
-            if parent_data == nil then
-                return false
-            end
-            if parent_data == "error" then
+            local ok3, parent_data = pcall(bsky.xrpc.getJsonOrErr, method, params)
+            if not ok3 then
                 reply.parent.error = "(This post has been deleted)"
             else
-                local ok2, parentProfileDid = getDidFromUri(parent_data.uri)
-                if not ok2 then
+                if parent_data == nil then
                     return false
+                else
+                    local ok2, parentProfileDid = bsky.did.fromUri(parent_data.uri)
+                    if not ok2 then
+                        return false
+                    end
+                    local parentProfile = getProfile(parentProfileDid)
+                    if not parentProfile then
+                        return false
+                    end
+                    reply.parent = parent_data
+                    reply.parent.authorProfile = parentProfile
                 end
-                local parentProfile = getProfile(parentProfileDid)
-                if not parentProfile then
-                    return false
-                end
-                reply.parent = parent_data
-                reply.parent.authorProfile = parentProfile
             end
         end
     end
     return true
 end
 
-local function foo()
+local function handle()
     if not HasParam("user") then
         SetStatus(400, "Missing required parameter 'user'")
         return
@@ -410,12 +287,12 @@ local function foo()
     local user = GetParam("user")
     local noReplies = false
     local noReposts = false
-    local bodyTable = fetchDecodeBskyUri(
-        "https://bsky.social/xrpc/com.atproto.repo.listRecords?repo="
-        .. user
-        .. "&collection=app.bsky.feed.post&limit=10",
-        true
-    )
+    local bodyTable = bsky.xrpc.getJsonOrErr("com.atproto.repo.listRecords",
+    {
+        repo = user,
+        collection = "app.bsky.feed.post",
+        limit = 10
+    })
 
     if not bodyTable then
         return
@@ -446,24 +323,23 @@ local function foo()
     SetHeader("Content-Type", "application/xml; charset=utf-8")
     SetHeader("x-content-type-options", "nosniff")
     Write('<?xml version="1.0" encoding="utf-8"?><?xml-stylesheet href="/rss.xsl" type="text/xsl"?>')
-    local titleNode = text(profileData.displayName .. " (Bluesky)")
-    local linkNode = text("https://bsky.app/profile/" .. user)
+    local titleNode = xml.text(profileData.displayName .. " (Bluesky)")
+    local linkNode = xml.text("https://bsky.app/profile/" .. user)
     Write(
-        tag(
+        xml.tag(
             "rss", false, { version = "2.0" },
-            tag(
+            xml.tag(
                 "channel", false,
-                tag("link", false, linkNode),
-                tag("title", false, titleNode),
-                tag("lastBuildDate", false, text(FormatHttpDateTime(unixsec))),
-                tag("description", false, text("Posts on Bluesky by " .. user)),
-                -- TODO: make these constants somewhere instead of hard-coding them
-                tag("generator", false, text("bskyfeed/0.5; redbean/2.2")),
-                tag(
+                xml.tag("link", false, linkNode),
+                xml.tag("title", false, titleNode),
+                xml.tag("lastBuildDate", false, xml.text(FormatHttpDateTime(unixsec))),
+                xml.tag("description", false, xml.text("Posts on Bluesky by " .. user)),
+                xml.tag("generator", false, xml.text(User_Agent)),
+                xml.tag(
                     "image", false,
-                    tag("url", false, text(profileData.avatar)),
-                    tag("title", false, titleNode),
-                    tag("link", false, linkNode)
+                    xml.tag("url", false, xml.text(profileData.avatar)),
+                    xml.tag("title", false, titleNode),
+                    xml.tag("link", false, linkNode)
                 ),
                 generateItems(bodyTable.records, profileData)
             )
@@ -471,4 +347,18 @@ local function foo()
     )
 end
 
-foo()
+local function returnError(err)
+    if type(err) == "table" then
+        SetStatus(err.status, err.status_msg)
+        for header, value in pairs(err.headers) do
+            SetHeader(header, value)
+        end
+        Write(err.body)
+    else
+        SetStatus(500)
+        Write(err)
+    end
+end
+
+xpcall(handle, returnError)
+-- handle()
