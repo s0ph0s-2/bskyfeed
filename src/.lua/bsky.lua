@@ -1,18 +1,14 @@
 --- Bluesky/ATProto API wrapper layer
 
---- Assemble a Bluesky/ATProto URI from the XRPC method and its parameters.
--- @param xrpc_method (string) The XRPC method to call on the Bluesky API
--- @param params (table | nil) The names and values of the parameters to pass to
---        the XRPC method.
--- @return (string) A URI that looks something like:
---         https://bsky.social/xrpc/METHOD_NAME?PARAM1=value1&PARAM2=value2
-local function assembleUri(xrpc_method, params)
-    if type(xrpc_method) ~= "string" then
-        error("assembleUri: xrpc_method must be string, not " .. type(xrpc_method))
-    end
-    if type(params) ~= "table" and params ~= nil then
-        error("assembleUri: params must be table or nil, not " .. type(params))
-    end
+--- Assemble a URI from a protocol, host, path, and params.
+-- Username/password and fragments are not supported.
+-- @param protocol (string) The protocol to use for the URI (typically https)
+-- @param host (string) The host portion of the URI (you can shoehorn username/password
+--  in here too if you want, but it's not explicitly supported)
+-- @param path (string) The path portion of the URI.
+-- @param params (table | nil) Parameters in the URI, if any.  URL encoding is done for you.
+-- @return (string) A URI: "(protocol)://(host)/(path)[?(URL-encoded params)]"
+local function assembleUri(protocol, host, path, params)
     local paramsStr = ""
     if params then
         local paramsPairs = {}
@@ -23,13 +19,37 @@ local function assembleUri(xrpc_method, params)
                 EscapeParam(value)
             ))
         end
-        paramsStr = table.concat(paramsPairs, "&")
+        paramsStr = "?" .. table.concat(paramsPairs, "&")
     end
-    local result = string.format(
-        "https://bsky.social/xrpc/%s?%s",
-        xrpc_method,
+    local correctedPath = path
+    if path == nil then
+        correctedPath = "/"
+    elseif #correctedPath > 0 and string.sub(correctedPath, 1, 1) ~= "/" then
+        correctedPath = "/" .. correctedPath
+    end
+    return string.format(
+        "%s://%s%s%s",
+        protocol,
+        host,
+        correctedPath,
         paramsStr
     )
+end
+
+--- Assemble a Bluesky/ATProto URI from the XRPC method and its parameters.
+-- @param xrpc_method (string) The XRPC method to call on the Bluesky API
+-- @param params (table | nil) The names and values of the parameters to pass to
+--        the XRPC method.
+-- @return (string) A URI that looks something like:
+--         https://bsky.social/xrpc/METHOD_NAME?PARAM1=value1&PARAM2=value2
+local function assembleXrpcUri(xrpc_method, params)
+    if type(xrpc_method) ~= "string" then
+        error("assembleUri: xrpc_method must be string, not " .. type(xrpc_method))
+    end
+    if type(params) ~= "table" and params ~= nil then
+        error("assembleUri: params must be table or nil, not " .. type(params))
+    end
+    local result = assembleUri("https", "bsky.social", "/xrpc/" .. xrpc_method, params)
     return result
 end
 
@@ -66,7 +86,7 @@ local function request(http_method, xrpc_method, params, headers, body)
         type(body) == "string" or body == nil,
         "request: body must be a string or nil"
     )
-    local uri = assembleUri(xrpc_method, params)
+    local uri = assembleXrpcUri(xrpc_method, params)
     return Fetch(uri, {
         method = http_method,
         body = body,
@@ -102,7 +122,7 @@ local function getJsonOrErr(method, params, headers)
         type(headers) == "table" or headers == nil,
         "request: headers must be a table or nil"
     )
-    local uri = assembleUri(method, params)
+    local uri = assembleXrpcUri(method, params)
     local status, resp_headers, resp_body = Fetch(uri, {
         headers = headers
     })
@@ -239,7 +259,8 @@ return {
         image = {
             feedHttp = makeFeedImageHttpUri,
             profileHttp = makeProfileImageHttpUri
-        }
+        },
+        assemble = assembleUri
     },
     did = {
         fromUri = getDidFromUri
