@@ -27,6 +27,7 @@ local function assembleUri(protocol, host, path, params)
     elseif #correctedPath > 0 and string.sub(correctedPath, 1, 1) ~= "/" then
         correctedPath = "/" .. correctedPath
     end
+    correctedPath = EscapePath(correctedPath)
     return string.format(
         "%s://%s%s%s",
         protocol,

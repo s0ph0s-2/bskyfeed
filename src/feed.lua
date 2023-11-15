@@ -97,7 +97,8 @@ end
 
 local function renderItemText(item, profileData)
     local result = {}
-    local author = string.format("%s (%s)", profileData.displayName, profileData.handle)
+    local authors = {}
+    table.insert(authors, string.format("%s (%s)", profileData.displayName, profileData.handle))
     -- Replies
     if item.value and item.value.reply then
         local reply = item.value.reply
@@ -117,13 +118,15 @@ local function renderItemText(item, profileData)
             ))
             print("Error while trying to render " .. EncodeJson(item))
         else
-            local quoteText, quoteAuthor = renderItemText(reply.parent, reply.parent.authorProfile)
+            local quoteText, quoteAuthors = renderItemText(reply.parent, reply.parent.authorProfile)
             local quote = xml.tag(
                 "blockquote", false,
                 quoteText
             )
             table.insert(result, quote)
-            author = author .. ", replying to " .. quoteAuthor
+            for _, quoteAuthor in ipairs(quoteAuthors) do
+                table.insert(authors, quoteAuthor)
+            end
         end
     end
     -- Text + facets
@@ -167,7 +170,7 @@ local function renderItemText(item, profileData)
             print("Unrecognized embed type: " .. embedType)
         end
     end
-    return reprocessNewlines(table.concat(result)), author
+    return reprocessNewlines(table.concat(result)), authors
 end
 
 local function generateItems(records, profileData)
@@ -178,7 +181,13 @@ local function generateItems(records, profileData)
             uri = item.uri
         end
         local pubDate = date(item.value.createdAt):fmt("${rfc1123}")
-        local itemText, author = renderItemText(item, profileData)
+        local itemText, itemAuthors = renderItemText(item, profileData)
+        local authors = ""
+        for _, author in ipairs(itemAuthors) do
+            authors = authors .. xml.tag(
+                "dc:creator", false, author
+            )
+        end
         table.insert(items, xml.tag(
             "item", false,
             xml.tag("link", false, xml.text(uri)),
@@ -191,7 +200,7 @@ local function generateItems(records, profileData)
                 "guid", false, { isPermaLink = "true" },
                 xml.text(uri)
             ),
-            xml.tag("author", false, xml.text(author))
+            authors
         ))
     end
     return table.concat(items)
@@ -317,11 +326,19 @@ local function handle()
         xml.tag(
             "rss", false, {
                 version = "2.0",
-                ["xmlns:atom"] = "http://www.w3.org/2005/Atom"
+                ["xmlns:atom"] = "http://www.w3.org/2005/Atom",
+                ["xmlns:dc"] = "http://purl.org/dc/elements/1.1/"
             },
             xml.tag(
                 "channel", false,
                 xml.tag("link", false, linkNode),
+                xml.tag(
+                    "atom:link", true, {
+                        href = GetUrl(),
+                        rel = "self",
+                        type = "application/rss+xml"
+                    }
+                ),
                 xml.tag("title", false, titleNode),
                 xml.tag("lastBuildDate", false, xml.text(FormatHttpDateTime(unixsec))),
                 xml.tag("description", false, xml.text("Posts on Bluesky by " .. profileData.displayName)),
@@ -331,13 +348,6 @@ local function handle()
                     xml.tag("url", false, xml.text(profileData.avatar)),
                     xml.tag("title", false, titleNode),
                     xml.tag("link", false, linkNode)
-                ),
-                xml.tag(
-                    "atom:link", true, {
-                        href = GetUrl(),
-                        rel = "self",
-                        type = "application/rss+xml"
-                    }
                 ),
                 generateItems(bodyTable.records, profileData)
             )

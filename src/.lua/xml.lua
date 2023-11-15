@@ -38,7 +38,7 @@
 -- @param value The attribute value to escape.
 -- @return A new string containing similar data, suitably escaped.
 local function escapeAttr(value)
-    return string.gsub(value, '["\']', { ["'"] = "&#39;", ['"'] = "&quot;" })
+    return string.gsub(value, '["\'&]', { ["'"] = "&#39;", ['"'] = "&quot;", ["&"] = "&amp;"})
 end
 
 --- Create an XML text node.
