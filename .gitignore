@@ -2,3 +2,4 @@ src/bskyfeed.com
 src/redbean*.com
 API fiddling.paw
 src/.lua/about.lua
+*.sqlite3*

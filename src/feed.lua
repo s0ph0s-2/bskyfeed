@@ -89,6 +89,26 @@ local embedMap = {
     ["app.bsky.embed.images"] = mapImagesEmbed
 }
 
+--- Generate an HTML author block for embeds or replies.
+-- @param author (table) A table with displayName, handle, and did keys.
+-- @return (string) HTML that describes the author.
+local function generateAuthorBlock(author)
+    local authorProfileLink = EncodeUrl({
+        scheme = "https",
+        host = "bsky.app",
+        path = "/profile/" .. author.did
+    })
+    return xml.tag(
+        "a", false, { href = authorProfileLink },
+        xml.tag(
+            "b", false,
+            xml.text(author.displayName)
+        ),
+        xml.tag("br", true),
+        xml.text("@" .. author.handle)
+    )
+end
+
 local function reprocessNewlines(textContent)
     local paragraphs = string.gsub(textContent, "\n\n", "</p><p>")
     local breaks = string.gsub(paragraphs, "\n", "<br/>")
@@ -102,6 +122,7 @@ local function renderItemText(item, profileData, itemUri)
     -- Replies
     if item.value and item.value.reply then
         local reply = item.value.reply
+        -- print("renderItemText: reply: " .. EncodeJson(reply))
         if reply.parent.error or not reply.parent.authorProfile then
             local error = reply.parent.error
             if not error then
@@ -129,11 +150,12 @@ local function renderItemText(item, profileData, itemUri)
                     "i", false, xml.text(reply.parent.error)
                 )
             ))
-            print("Error while trying to render " .. EncodeJson(item))
+            -- print("Error while trying to render " .. EncodeJson(item))
         else
             local quoteText, quoteAuthors = renderItemText(reply.parent, reply.parent.authorProfile, itemUri)
             local quote = xml.tag(
                 "blockquote", false,
+                generateAuthorBlock(reply.parent.authorProfile),
                 quoteText
             )
             table.insert(result, quote)
@@ -180,7 +202,11 @@ local function renderItemText(item, profileData, itemUri)
         if embedMap[embedType] then
             embedMap[embedType](item, embed, result, authors)
         else
-            print("Unrecognized embed type: " .. embedType)
+            if embedType then
+                print("Unrecognized embed type: " .. embedType)
+            else
+                Log(kLogWarn, "Nil embed type in " .. EncodeJson(item))
+            end
         end
     end
     return reprocessNewlines(table.concat(result)), authors
@@ -201,7 +227,9 @@ local function mapRecordEmbed(_, embed, result, authors)
     for _, author in ipairs(embedAuthors) do
         table.insert(authors, author)
     end
-    table.insert(result, xml.tag("blockquote", false, embeddedPost))
+    table.insert(result, xml.tag(
+        "blockquote", false, generateAuthorBlock(embedAuthor), embeddedPost
+    ))
 end
 
 -- This needs to be done down here because mapRecordEmbed relies on the
@@ -243,6 +271,13 @@ local function generateItems(records, profileData)
 end
 
 local function getProfile(user)
+    local cachedProfile = GetProfileFromCache(user)
+    if cachedProfile then
+        local cacheAge = unix.clock_gettime() - cachedProfile.cachedAt
+        if cacheAge < (60 * 60 * 24) then
+            return cachedProfile
+        end
+    end
     local ok, profileData = pcall(bsky.xrpc.getJsonOrErr, "com.atproto.repo.listRecords", {
         repo = user,
         limit = 1,
@@ -275,7 +310,42 @@ local function getProfile(user)
         handle = handle,
         did = did
     }
+    PutProfileIntoCache(justTheGoodParts)
     return justTheGoodParts
+end
+
+local function fetchPost(uri)
+    local cachedPost, cachedAt = GetPostFromCache(uri)
+    if cachedPost then
+        local cacheAge = unix.clock_gettime() - cachedAt
+        if cacheAge < (60 * 60 * 24) then
+            -- print("fetchPost: returning cached post: " .. EncodeJson(cachedPost))
+            return true, cachedPost
+        end
+    end
+    local ok, method, params = bsky.uri.post.toXrpcParams(uri)
+    if not ok then
+        print(method)
+        return false, "(Invalid post URI)"
+    end
+    local ok2, postData = pcall(bsky.xrpc.getJsonOrErr, method, params)
+    if not ok2 then
+        return false, "(This post has been deleted)"
+    end
+    if postData == nil then
+        return false, "(Invalid response from Bluesky)"
+    end
+    local ok3, postProfileDid = bsky.did.fromUri(postData.uri)
+    if not ok3 then
+        return false, "(Invalid profile URI for parent post)"
+    end
+    local postProfile = getProfile(postProfileDid)
+    if not postProfile then
+        return false, "(The account which posted this has been deleted)"
+    end
+    postData.authorProfile = postProfile
+    PutPostIntoCache(postData)
+    return true, postData
 end
 
 local function prefetchReplies(records)
@@ -283,29 +353,11 @@ local function prefetchReplies(records)
         local reply = item.value.reply
         if reply then
             -- TODO: also get root?
-            local ok, method, params = bsky.uri.post.toXrpcParams(reply.parent.uri)
+            local ok, postData = fetchPost(reply.parent.uri)
             if not ok then
-                print(method)
-                return false
-            end
-            local ok3, parent_data = pcall(bsky.xrpc.getJsonOrErr, method, params)
-            if not ok3 then
-                reply.parent.error = "(This post has been deleted)"
+                reply.parent.error = postData
             else
-                if parent_data == nil then
-                    return false
-                else
-                    local ok2, parentProfileDid = bsky.did.fromUri(parent_data.uri)
-                    if not ok2 then
-                        return false
-                    end
-                    local parentProfile = getProfile(parentProfileDid)
-                    if not parentProfile then
-                        return false
-                    end
-                    reply.parent = parent_data
-                    reply.parent.authorProfile = parentProfile
-                end
+                reply.parent = postData
             end
         end
     end
@@ -316,29 +368,11 @@ local function prefetchQuotePosts(records)
     for _, item in ipairs(records) do
         local embed = item.value.embed
         if embed and embed["$type"] == "app.bsky.embed.record" then
-            local ok, method, params = bsky.uri.post.toXrpcParams(embed.record.uri)
+            local ok, postData = fetchPost(embed.record.uri)
             if not ok then
-                print(method)
-                return false
-            end
-            local ok3, quote_data = pcall(bsky.xrpc.getJsonOrErr, method, params)
-            if not ok3 then
-                embed.error = "(This post has been deleted)"
+                embed.error = postData
             else
-                if quote_data == nil then
-                    return false
-                else
-                    local ok2, quoteProfileDid = bsky.did.fromUri(quote_data.uri)
-                    if not ok2 then
-                        return false
-                    end
-                    local quoteProfile = getProfile(quoteProfileDid)
-                    if not quoteProfile then
-                        return false
-                    end
-                    embed.value = quote_data
-                    embed.value.authorProfile = quoteProfile
-                end
+                embed.value = postData
             end
         end
     end
@@ -351,7 +385,7 @@ local function handle()
         return
     end
     local user = GetParam("user")
-    local noReplies = false
+    local noReplies = HasParam("no_replies")
     local noReposts = false
     local bodyTable = bsky.xrpc.getJsonOrErr("com.atproto.repo.listRecords",
     {
@@ -376,7 +410,6 @@ local function handle()
             return
         end
         if not prefetchQuotePosts(bodyTable.records) then
-
             return
         end
     end

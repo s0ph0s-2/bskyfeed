@@ -30,7 +30,7 @@ local function handle()
     end
     local no_replies = HasParam("no_replies")
     local no_reposts = HasParam("no_reposts")
-    if no_replies or no_reposts then
+    if no_reposts then
         error({
             status = 400,
             status_msg = "Bad Request",
