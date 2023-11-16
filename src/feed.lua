@@ -30,6 +30,7 @@ end
 local facetMap = {
     ["app.bsky.richtext.facet#link"] = mapLinkFacet,
     ["app.bsky.richtext.facet#mention"] = mapMentionFacet
+    -- ["app.bsky.richtext.facet#tag"] = mapHashtagFacet -- Not sure what URL to map these to
 }
 
 local function mapExternalEmbed(_, embed, result)

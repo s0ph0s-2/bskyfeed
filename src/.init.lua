@@ -85,7 +85,7 @@ function GetProfileFromCache(did)
 end
 
 function PutProfileIntoCache(profile)
-    print("PutProfileIntoCache: caching " .. EncodeJson(profile))
+    -- print("PutProfileIntoCache: caching " .. EncodeJson(profile))
     if not insertIntoProfileCacheStmt then
         Log(kLogWarn, 'prepare insertIntoProfileCacheStmt failed: ' .. db:errmsg())
         return nil
@@ -121,7 +121,7 @@ function GetPostFromCache(uri)
 end
 
 function PutPostIntoCache(post)
-    print("PutPostIntoCache: caching " .. EncodeJson(post))
+    -- print("PutPostIntoCache: caching " .. EncodeJson(post))
     if not insertIntoPostCacheStmt then
         Log(kLogWarn, 'prepare insertIntoPostCacheStmt failed: ' .. db:errmsg())
         return nil
