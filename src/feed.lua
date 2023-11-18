@@ -52,6 +52,15 @@ end
 
 local function mapImagesEmbed(item, embed, result)
     table.insert(result, xml.tag("hr", true))
+    table.insert(result, "<div style='display:flex;flex-wrap:wrap'>")
+    local style = ""
+    if #embed.images == 2 then
+        style = "width:50%"
+    elseif #embed.images == 3 then
+        style = "width:33%"
+    elseif #embed.images == 4 then
+        style = "width:50%"
+    end
     for _, image in ipairs(embed.images) do
         local ok, src = bsky.uri.image.feedHttp(
             item.uri,
@@ -61,7 +70,8 @@ local function mapImagesEmbed(item, embed, result)
         if ok then
             local attrs = {
                     alt = image.alt,
-                    src = src
+                    src = src,
+                    style = style
             }
             if image.aspectRatio then
                 attrs.width = image.aspectRatio.width
@@ -82,6 +92,7 @@ local function mapImagesEmbed(item, embed, result)
             ))
         end
     end
+    table.insert(result, "</div>")
 end
 
 local embedMap = {
@@ -250,7 +261,7 @@ local function generateItems(records, profileData)
         local authors = ""
         for _, author in ipairs(itemAuthors) do
             authors = authors .. xml.tag(
-                "dc:creator", false, author
+                "dc:creator", false, xml.text(author)
             )
         end
         table.insert(items, xml.tag(
