@@ -56,7 +56,7 @@ end
 --- may represent one or more CDATA notes, in order to ensure that any instances
 --- of `]]>` in the input value do not escape containment.
 local function cdata(value)
-    local no_gt = string.gsub(value, "]]>", "]]&gt;")
+    local no_gt = string.gsub(value, "]]>", "]]]]><![CDATA[>")
     return string.format("<![CDATA[%s]]>", no_gt)
 end
 

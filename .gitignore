@@ -1,7 +1,8 @@
 bskyfeed.com
-redbean*.com
+*redbean*.com
 API fiddling.paw
 lib/about.lua
 *.sqlite3*
 .dir
 srv/**
+srv-test/**
