@@ -31,7 +31,7 @@ Atom feeds require every entry to have a title. For a social media service where
    - ~~Move library functions out of `feed.lua` and into modules~~
    - ~~Build a (very thin) API wrapper for atproto calls so that I don't need to do so much string concatenation~~
    - Separate the data fetches from the processing from the feed generation more cleanly
-4. [JSON Feed](https://www.jsonfeed.org) output support (enables profile pictures to show up as feed author icons, at least in NetNewsWire)
+4. ~~[JSON Feed](https://www.jsonfeed.org) output support (enables profile pictures to show up as feed author icons, at least in NetNewsWire)~~
 5. Find a way to make the `Fetch` requests asynchronously, to improve load times
    - Probably going to be difficult; the only way I can find to accomplish this is by forking and running the `Fetch` in another process. Then you have to do XPC somehow, which is difficult.
    - Also less necessary now that I've implemented caching; only the initial load is slow (which is probably fine)

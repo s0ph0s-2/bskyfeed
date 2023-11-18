@@ -17,14 +17,14 @@ local function handle()
         })
         return
     end
-    local identifier = GetParam("identifier")
-    local feed_type = GetParam("feed_type")
-    if feed_type ~= "rss" then
+    local identifier = string.lower(GetParam("identifier"))
+    local feed_type = string.lower(GetParam("feed_type"))
+    if feed_type ~= "rss" and feed_type ~= "jsonfeed" then
         error({
             status = 400,
             status_msg = "Bad Request",
             headers = {},
-            body = "Sorry, only RSS feeds are implemented so far."
+            body = "feed_type must be either 'rss' or 'jsonfeed'."
         })
         return
     end
@@ -35,7 +35,7 @@ local function handle()
             status = 400,
             status_msg = "Bad Request",
             headers = {},
-            body = "Sorry, excluding posts hasn't been implemented yet."
+            body = "Sorry, excluding reposts hasn't been implemented yet."
         })
         return
     end

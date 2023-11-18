@@ -1,14 +1,7 @@
-local date = require "date"
 local xml = require "xml"
 local bsky = require "bsky"
-local about = require "about"
-
-local User_Agent = string.format(
-    "%s/%s; redbean/%s",
-    about.NAME,
-    about.VERSION,
-    about.REDBEAN_VERSION
-)
+local rss = require "rss"
+local jsonfeed = require "jsonfeed"
 
 
 local function mapMentionFacet(item, facet, feature, result)
@@ -102,7 +95,7 @@ local embedMap = {
 }
 
 --- Generate an HTML author block for embeds or replies.
---- @param author (table) A table with displayName, handle, and did keys.
+--- @param author (Profile) A table with displayName, handle, and did keys.
 --- @return (string) HTML that describes the author.
 local function generateAuthorBlock(author)
     local authorProfileLink = EncodeUrl({
@@ -128,10 +121,19 @@ local function reprocessNewlines(textContent)
     return breaks
 end
 
+--- Render a Bluesky record into HTML for a feed reader.
+--- @param item (table) The Bluesky post/record to render.
+--- @param profileData (Profile) The profile of the person who wrote the item.
+--- @param itemUri (string) The HTTP URI to this post on the Bluesky web
+---        interface.
+--- @return (string) The HTML rendered version of the post.
+--- @return (Profile[]) The authors of the post.  The primary feed author is
+---         always first, followed by the profiles of people who are being
+---         quoted or replied to.
 local function renderItemText(item, profileData, itemUri)
     local result = {}
     local authors = {}
-    table.insert(authors, string.format("%s (%s)", profileData.displayName, profileData.handle))
+    table.insert(authors, profileData)
     -- Replies
     if item.value and item.value.reply then
         local reply = item.value.reply
@@ -249,40 +251,16 @@ end
 -- renderItemText function being defined already, which is a circular
 -- dependency.
 embedMap["app.bsky.embed.record"] = mapRecordEmbed
-
-local function generateItems(records, profileData)
-    local items = {}
-    for _, item in pairs(records) do
-        local ok, uri = bsky.uri.post.toHttp(item.uri)
-        if not ok then
-            uri = item.uri
-        end
-        local pubDate = date(item.value.createdAt):fmt("${rfc1123}")
-        local itemText, itemAuthors = renderItemText(item, profileData, uri)
-        local authors = ""
-        for _, author in ipairs(itemAuthors) do
-            authors = authors .. xml.tag(
-                "dc:creator", false, xml.text(author)
-            )
-        end
-        table.insert(items, xml.tag(
-            "item", false,
-            xml.tag("link", false, xml.text(uri)),
-            xml.tag(
-                "description", false,
-                xml.cdata(itemText)
-            ),
-            xml.tag("pubDate", false, xml.text(pubDate)),
-            xml.tag(
-                "guid", false, { isPermaLink = "true" },
-                xml.text(uri)
-            ),
-            authors
-        ))
-    end
-    return table.concat(items)
+embedMap["app.bsky.embed.recordWithMedia"] = function (item, embed, result, authors)
+    mapImagesEmbed(item, embed, result)
+    mapRecordEmbed(item, embed, result, authors)
 end
 
+--- @alias Profile {displayName: string, description: string, avatar: string|nil, handle: string, did: string}
+
+--- Get the profile for a user, either from the cache or from Bluesky.
+--- @param user string The DID for a user.
+--- @return Profile The profile data for `user`
 local function getProfile(user)
     local cachedProfile = GetProfileFromCache(user)
     if cachedProfile then
@@ -380,17 +358,29 @@ end
 local function prefetchQuotePosts(records)
     for _, item in ipairs(records) do
         local embed = item.value.embed
-        if embed and embed["$type"] == "app.bsky.embed.record" then
-            local ok, postData = fetchPost(embed.record.uri)
-            if not ok then
-                embed.error = postData
-            else
-                embed.value = postData
+        if embed then
+            if embed["$type"] == "app.bsky.embed.record" then
+                local ok, postData = fetchPost(embed.record.uri)
+                if not ok then
+                    embed.error = postData
+                else
+                    embed.value = postData
+                end
+            elseif embed["$type"] == "app.bsky.embed.recordWithMedia" then
+                local ok, postData = fetchPost(embed.record.record.uri)
+                if not ok then
+                    embed.error = postData
+                else
+                    embed.value = postData
+                    embed.uri = embed.record.record.uri
+                    embed.images = embed.media.images
+                end
             end
         end
     end
     return true
 end
+
 
 local function handle()
     if not HasParam("user") then
@@ -400,6 +390,20 @@ local function handle()
     local user = GetParam("user")
     local noReplies = HasParam("no_replies")
     local noReposts = false
+    local feedType = "rss"
+    if HasParam("feed_type") then
+        local requestedType = GetParam("feed_type")
+        if requestedType ~= "rss" and requestedType ~= "jsonfeed" then
+            error({
+                status = 400,
+                status_msg = "Bad Request",
+                headers = {},
+                body = "Feed type must be 'rss' or 'jsonfeed', not " .. requestedType
+            })
+            return
+        end
+        feedType = requestedType
+    end
     local bodyTable = bsky.xrpc.getJsonOrErr("com.atproto.repo.listRecords",
     {
         repo = user,
@@ -435,43 +439,14 @@ local function handle()
         return
     end
 
-    local unixsec = unix.clock_gettime()
-    SetHeader("Content-Type", "application/xml; charset=utf-8")
-    SetHeader("x-content-type-options", "nosniff")
-    Write('<?xml version="1.0" encoding="utf-8"?><?xml-stylesheet href="/rss.xsl" type="text/xsl"?>')
-    local titleNode = xml.text(profileData.displayName .. " (Bluesky)")
-    local linkNode = xml.text("https://bsky.app/profile/" .. user)
-    Write(
-        xml.tag(
-            "rss", false, {
-                version = "2.0",
-                ["xmlns:atom"] = "http://www.w3.org/2005/Atom",
-                ["xmlns:dc"] = "http://purl.org/dc/elements/1.1/"
-            },
-            xml.tag(
-                "channel", false,
-                xml.tag("link", false, linkNode),
-                xml.tag(
-                    "atom:link", true, {
-                        href = GetUrl(),
-                        rel = "self",
-                        type = "application/rss+xml"
-                    }
-                ),
-                xml.tag("title", false, titleNode),
-                xml.tag("lastBuildDate", false, xml.text(FormatHttpDateTime(unixsec))),
-                xml.tag("description", false, xml.text("Posts on Bluesky by " .. profileData.displayName)),
-                xml.tag("generator", false, xml.text(User_Agent)),
-                xml.tag(
-                    "image", false,
-                    xml.tag("url", false, xml.text(profileData.avatar)),
-                    xml.tag("title", false, titleNode),
-                    xml.tag("link", false, linkNode)
-                ),
-                generateItems(bodyTable.records, profileData)
-            )
-        )
-    )
+    if feedType == "rss" then
+        SetHeader("Content-Type", "application/xml; charset=utf-8")
+        SetHeader("x-content-type-options", "nosniff")
+        Write(rss.render(bodyTable.records, profileData, renderItemText))
+    elseif feedType == "jsonfeed" then
+        SetHeader("Content-Type", "application/feed+json")
+        Write(jsonfeed.render(bodyTable.records, profileData, renderItemText))
+    end
 end
 
 local function returnError(err)

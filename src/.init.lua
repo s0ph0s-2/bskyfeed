@@ -1,7 +1,15 @@
+local about = require "about"
 local re = require 're'
 local sqlite3 = require 'lsqlite3'
 AT_URI = re.compile[[^at://(did:[a-z0-9:]+)/app.bsky.feed.post/([a-z0-9]+)]]
 DB_FILE = 'bskyfeedCache.sqlite3'
+
+User_Agent = string.format(
+    "%s/%s; redbean/%s",
+    about.NAME,
+    about.VERSION,
+    about.REDBEAN_VERSION
+)
 
 function SetupDb()
     if not unix.access(DB_FILE, unix.F_OK) then

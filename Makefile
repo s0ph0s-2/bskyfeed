@@ -6,7 +6,9 @@ ABOUT_FILE := lib/about.lua
 LIBS := $(ABOUT_FILE) \
 	lib/bsky.lua \
 	lib/date.lua \
-	lib/xml.lua
+	lib/xml.lua \
+	lib/rss.lua \
+	lib/jsonfeed.lua
 SRCS := src/.init.lua \
 	src/feed.lua \
 	src/generate.lua \
