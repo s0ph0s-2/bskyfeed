@@ -3,40 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <title>Bluesky Feed</title>
-    <style>
-      * {
-        box-sizing: border-box;
-      }
-      html,
-      body {
-        font-family: sans-serif;
-        background-color: lightgray;
-        margin: 2em auto;
-      }
-      form > * {
-        display: block;
-        margin: 0.3em;
-      }
-      body {
-        max-width: 22em;
-      }
-      .backwards {
-        display: flex;
-        flex-direction: row-reverse;
-      }
-      .backwards input {
-        margin-left: 1em;
-      }
-      @media (prefers-color-scheme: dark) {
-        html,
-        body {
-          color: #eee;
-          background-color: #000;
-        }
-      }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/style.css" />
   </head>
-  <body>
+  <body class="home-container">
     <h1>Bluesky Feed</h1>
     <p>Make RSS feeds for Bluesky users' posts.</p>
     <form action="/generate.lua" method="POST">

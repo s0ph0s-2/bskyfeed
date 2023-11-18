@@ -11,6 +11,7 @@ FILES := .init.lua \
 	rss.xsl \
     feed.lua \
 	generate.lua \
+	style.css \
     index.html
 
 build: $(OUTPUT)

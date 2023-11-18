@@ -1,0 +1,76 @@
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  font-family: sans-serif;
+  margin: 2em auto;
+}
+form > * {
+  display: block;
+  margin: 0.3em;
+}
+.home-container {
+  max-width: 22em;
+}
+.backwards {
+  display: flex;
+  flex-direction: row-reverse;
+}
+.backwards input {
+  margin-left: 1em;
+}
+.notice {
+  background-color: rgba(255, 255, 0, 0.333);
+  padding: 0.5em 1em;
+  border-radius: 4px;
+}
+.text-gray {
+  color: gray;
+}
+.container-md {
+  max-width: 40em;
+  margin: 1em auto;
+  padding: 0.5em;
+}
+.container-md img {
+  max-width: 100%;
+  height: auto;
+}
+header {
+  margin-bottom: 2.5em;
+}
+blockquote {
+  padding-left: 1em;
+  margin-left: 0;
+  border-left: 0.2em solid gray;
+}
+hr {
+  border: 1px dashed gray;
+}
+.post {
+  border-bottom: 1px solid gray;
+}
+.post:last-child {
+  border-bottom: 0;
+}
+.post h3 {
+  margin-bottom: 0.5em;
+}
+@media (prefers-color-scheme: dark) {
+  html,
+  body {
+    color: #eee;
+    background-color: #000;
+  }
+  a {
+    color: #7af;
+    text-decoration: none;
+  }
+  a:active {
+    color: red;
+  }
+  a:visited {
+    color: #d7f;
+  }
+}
