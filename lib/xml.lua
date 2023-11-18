@@ -90,14 +90,19 @@ local function tag(tagName, selfClosing, attrsOrFirstChild, ...)
         attrsOrFirstChild = {}
     end
     if attrsOrFirstChild ~= nil and type(attrsOrFirstChild) == "table" then
+        local pairedAttrs = {}
         for key, value in pairs(attrsOrFirstChild) do
-            if type(value) ~= "boolean" then
+            table.insert(pairedAttrs, { key, value })
+        end
+        table.sort(pairedAttrs, function(a, b) return a[1] < b[1] end)
+        for _, pair in ipairs(pairedAttrs) do
+            if pair[2] and type(pair[2]) ~= "boolean" then
                 table.insert(
                     attrs,
-                    string.format(" %s='%s'", key, escapeAttr(value))
+                    string.format(" %s='%s'", pair[1], escapeAttr(pair[2]))
                 )
-            elseif value then
-                table.insert(attrs, " " .. key)
+            elseif pair[2] then
+                table.insert(attrs, " " .. pair[1])
             end
         end
     end
