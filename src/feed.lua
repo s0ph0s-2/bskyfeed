@@ -408,7 +408,7 @@ local function handle()
     {
         repo = user,
         collection = "app.bsky.feed.post",
-        limit = 10
+        limit = 20
     })
 
     if not bodyTable then

@@ -10,6 +10,9 @@ local date = require "date"
 local function generateItems(records, profileData, renderItemText)
     local items = {}
     for _, item in pairs(records) do
+        if not item then
+            return ""
+        end
         local ok, uri = bsky.uri.post.toHttp(item.uri)
         if not ok then
             uri = item.uri
