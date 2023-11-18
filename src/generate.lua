@@ -58,22 +58,20 @@ local function handle()
     end
 
     local params = {
-        user = did,
-        feed_type = feed_type,
+        { "user", did },
+        { "feed_type", feed_type }
     }
     if no_replies then
-        params.no_replies = ""
+        table.insert(params, { "no_replies" })
     end
     if no_reposts then
-        params.no_reposts = ""
+        table.insert(params, { "no_reposts" })
     end
+    local visitor_url = ParseUrl(GetUrl())
+    visitor_url.path = "/feed.lua"
+    visitor_url.params = params
 
-    local feed_uri = bsky.uri.assemble(
-        "http",
-        "localhost:8080",
-        "/feed.lua",
-        params
-    )
+    local feed_uri = EncodeUrl(visitor_url)
 
     SetStatus(302)
     SetHeader("Location", feed_uri)
