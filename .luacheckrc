@@ -9,8 +9,8 @@ stds.redbean = {
         }
     }},
     globals = {"db", "re", "AT_URI", "DB_FILE", "GetProfileFromCache",
-    "PutProfileIntoCache", "getFromProfileCacheStmt", "insertIntoProfileCacheStmt",
-    "SetupSql", "SetupDb", "sqlite3", "getFromPostCacheStmt", "insertIntoPostCacheStmt",
-    "GetPostFromCache", "PutPostIntoCache"}
+    "PutProfileIntoCache", "GetFromProfileCacheStmt", "InsertIntoProfileCacheStmt",
+    "SetupSql", "SetupDb", "sqlite3", "GetFromPostCacheStmt", "InsertIntoPostCacheStmt",
+    "GetPostFromCache", "PutPostIntoCache", "User_Agent"}
 }
 std = "lua54+redbean"

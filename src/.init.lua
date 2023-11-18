@@ -1,15 +1,15 @@
-re = require 're'
-sqlite3 = require 'lsqlite3'
+local re = require 're'
+local sqlite3 = require 'lsqlite3'
 AT_URI = re.compile[[^at://(did:[a-z0-9:]+)/app.bsky.feed.post/([a-z0-9]+)]]
 DB_FILE = 'bskyfeedCache.sqlite3'
 
 function SetupDb()
     if not unix.access(DB_FILE, unix.F_OK) then
-        db = sqlite3.open(DB_FILE)
-        db:busy_timeout(1000)
-        db:exec[[PRAGMA journal_mode=WAL]]
-        db:exec[[PRAGMA synchronous=NORMAL]]
-        db:exec[[CREATE TABLE ProfileCache (
+        Db = sqlite3.open(DB_FILE)
+        Db:busy_timeout(1000)
+        Db:exec[[PRAGMA journal_mode=WAL]]
+        Db:exec[[PRAGMA synchronous=NORMAL]]
+        Db:exec[[CREATE TABLE ProfileCache (
             did TEXT PRIMARY KEY,
             handle TEXT,
             displayName TEXT,
@@ -17,25 +17,25 @@ function SetupDb()
             avatar TEXT,
             cachedAt TEXT
         );]]
-        db:exec[[CREATE TABLE PostCache (
+        Db:exec[[CREATE TABLE PostCache (
             uri TEXT PRIMARY KEY,
             postBlob BLOB,
             cachedAt TEXT
         );]]
-        db:close()
-        db = nil
+        Db:close()
+        Db = nil
     end
 end
 
 SetupDb()
 
-function SetupSql()
-    if not db then
-        db = sqlite3.open(DB_FILE)
-        db:busy_timeout(1000)
-        db:exec[[PRAGMA journal_mode=WAL;]]
-        db:exec[[PRAGMA synchronous=NORMAL;]]
-        getFromProfileCacheStmt = db:prepare[[
+local function setupSql()
+    if not Db then
+        Db = sqlite3.open(DB_FILE)
+        Db:busy_timeout(1000)
+        Db:exec[[PRAGMA journal_mode=WAL;]]
+        Db:exec[[PRAGMA synchronous=NORMAL;]]
+        GetFromProfileCacheStmt = Db:prepare[[
             SELECT
                 did, handle, displayName, description, avatar, strftime('%s', cachedAt) AS cachedAt
             FROM
@@ -43,14 +43,14 @@ function SetupSql()
             WHERE
                 did = ?;
         ]]
-        insertIntoProfileCacheStmt = db:prepare[[
+        InsertIntoProfileCacheStmt = Db:prepare[[
             INSERT OR REPLACE INTO ProfileCache (
                 did, handle, displayName, description, avatar, cachedAt
             ) VALUES (
                 ?,   ?,      ?,           ?,           ?,      datetime('now')
             );
         ]]
-        getFromPostCacheStmt = db:prepare[[
+        GetFromPostCacheStmt = Db:prepare[[
             SELECT
                 postBlob, strftime('%s', cachedAt) AS cachedAt
             FROM
@@ -58,7 +58,7 @@ function SetupSql()
             WHERE
                 uri = ?;
         ]]
-        insertIntoPostCacheStmt = db:prepare[[
+        InsertIntoPostCacheStmt = Db:prepare[[
             INSERT OR REPLACE INTO PostCache (
                 uri, postBlob, cachedAt
             ) VALUES (
@@ -72,13 +72,13 @@ function SetupSql()
 end
 
 function GetProfileFromCache(did)
-    if not getFromProfileCacheStmt then
-        Log(kLogWarn, 'prepare getFromProfileCache failed: ' .. db:errmsg())
+    if not GetFromProfileCacheStmt then
+        Log(kLogWarn, 'prepare getFromProfileCache failed: ' .. Db:errmsg())
         return nil
     end
-    getFromProfileCacheStmt:reset()
-    getFromProfileCacheStmt:bind(1, did)
-    for profile in getFromProfileCacheStmt:nrows() do -- luacheck: ignore
+    GetFromProfileCacheStmt:reset()
+    GetFromProfileCacheStmt:bind(1, did)
+    for profile in GetFromProfileCacheStmt:nrows() do -- luacheck: ignore
         return profile
     end
     return nil
@@ -86,30 +86,30 @@ end
 
 function PutProfileIntoCache(profile)
     -- print("PutProfileIntoCache: caching " .. EncodeJson(profile))
-    if not insertIntoProfileCacheStmt then
-        Log(kLogWarn, 'prepare insertIntoProfileCacheStmt failed: ' .. db:errmsg())
+    if not InsertIntoProfileCacheStmt then
+        Log(kLogWarn, 'prepare InsertIntoProfileCacheStmt failed: ' .. Db:errmsg())
         return nil
     end
-    insertIntoProfileCacheStmt:reset()
-    insertIntoProfileCacheStmt:bind(1, profile.did)
-    insertIntoProfileCacheStmt:bind(2, profile.handle)
-    insertIntoProfileCacheStmt:bind(3, profile.displayName)
-    insertIntoProfileCacheStmt:bind(4, profile.description)
-    insertIntoProfileCacheStmt:bind(5, profile.avatar)
-    if insertIntoProfileCacheStmt:step() == sqlite3.DONE then
+    InsertIntoProfileCacheStmt:reset()
+    InsertIntoProfileCacheStmt:bind(1, profile.did)
+    InsertIntoProfileCacheStmt:bind(2, profile.handle)
+    InsertIntoProfileCacheStmt:bind(3, profile.displayName)
+    InsertIntoProfileCacheStmt:bind(4, profile.description)
+    InsertIntoProfileCacheStmt:bind(5, profile.avatar)
+    if InsertIntoProfileCacheStmt:step() == sqlite3.DONE then
         return true
     end
     return false
 end
 
 function GetPostFromCache(uri)
-    if not getFromPostCacheStmt then
-        Log(kLogWarn, 'prepare getFromPostCache failed: ' .. db:errmsg())
+    if not GetFromPostCacheStmt then
+        Log(kLogWarn, 'prepare getFromPostCache failed: ' .. Db:errmsg())
         return nil
     end
-    getFromPostCacheStmt:reset()
-    getFromPostCacheStmt:bind(1, uri)
-    for post in getFromPostCacheStmt:nrows() do -- luacheck: ignore
+    GetFromPostCacheStmt:reset()
+    GetFromPostCacheStmt:bind(1, uri)
+    for post in GetFromPostCacheStmt:nrows() do -- luacheck: ignore
         local postTable = DecodeJson(post.postBlob)
         if postTable then
             return postTable, post.cachedAt
@@ -122,20 +122,20 @@ end
 
 function PutPostIntoCache(post)
     -- print("PutPostIntoCache: caching " .. EncodeJson(post))
-    if not insertIntoPostCacheStmt then
-        Log(kLogWarn, 'prepare insertIntoPostCacheStmt failed: ' .. db:errmsg())
+    if not InsertIntoPostCacheStmt then
+        Log(kLogWarn, 'prepare InsertIntoPostCacheStmt failed: ' .. Db:errmsg())
         return nil
     end
-    insertIntoPostCacheStmt:reset()
-    insertIntoPostCacheStmt:bind(1, post.uri)
-    insertIntoPostCacheStmt:bind(2, EncodeJson(post))
-    if insertIntoPostCacheStmt:step() == sqlite3.DONE then
+    InsertIntoPostCacheStmt:reset()
+    InsertIntoPostCacheStmt:bind(1, post.uri)
+    InsertIntoPostCacheStmt:bind(2, EncodeJson(post))
+    if InsertIntoPostCacheStmt:step() == sqlite3.DONE then
         return true
     end
     return false
 end
 
 function OnHttpRequest()
-   SetupSql()
+   setupSql()
    Route()
 end

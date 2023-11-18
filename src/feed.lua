@@ -102,8 +102,8 @@ local embedMap = {
 }
 
 --- Generate an HTML author block for embeds or replies.
--- @param author (table) A table with displayName, handle, and did keys.
--- @return (string) HTML that describes the author.
+--- @param author (table) A table with displayName, handle, and did keys.
+--- @return (string) HTML that describes the author.
 local function generateAuthorBlock(author)
     local authorProfileLink = EncodeUrl({
         scheme = "https",
@@ -122,6 +122,7 @@ local function generateAuthorBlock(author)
 end
 
 local function reprocessNewlines(textContent)
+    -- TODO: I observed this inserting <br> into an alt="" once, this should probably be done differently.
     local paragraphs = string.gsub(textContent, "\n\n", "</p><p>")
     local breaks = string.gsub(paragraphs, "\n", "<br/>")
     return breaks
@@ -303,7 +304,7 @@ local function getProfile(user)
         did = user
     }
 
-    if not ok then
+    if not ok or not profileData then
         return unknownUser
     end
     if #profileData.records ~= 1 then
@@ -311,7 +312,7 @@ local function getProfile(user)
     end
     local p = profileData.records[1]
     local handle, did = bsky.user.getHandleAndDid(user)
-    if not handle then
+    if not handle or not did then
         return unknownUser
     end
     local avatarUri = bsky.uri.image.profileHttp(did, p.value.avatar.ref["$link"], p.value.avatar.mimeType)
