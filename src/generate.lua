@@ -29,16 +29,7 @@ local function handle()
         return
     end
     local no_replies = HasParam("no_replies")
-    local no_reposts = HasParam("no_reposts")
-    if no_reposts then
-        error({
-            status = 400,
-            status_msg = "Bad Request",
-            headers = {},
-            body = "Sorry, excluding reposts hasn't been implemented yet."
-        })
-        return
-    end
+    local yes_reposts = HasParam("yes_reposts")
 
     local did = identifier
     if identifier:sub(1, 4) ~= "did:" then
@@ -64,8 +55,8 @@ local function handle()
     if no_replies then
         table.insert(params, { "no_replies" })
     end
-    if no_reposts then
-        table.insert(params, { "no_reposts" })
+    if yes_reposts then
+        table.insert(params, { "yes_reposts" })
     end
     local visitor_url = ParseUrl(GetUrl())
     visitor_url.path = "/feed.lua"

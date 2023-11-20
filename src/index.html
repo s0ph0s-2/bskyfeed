@@ -11,7 +11,7 @@
     <p>Make RSS feeds for Bluesky users' posts.</p>
     <form action="/generate.lua" method="POST">
       <label>
-        Bluesky DID or handle:
+        <div>Bluesky DID or handle:</div>
         <input
           type="text"
           name="identifier"
@@ -19,22 +19,47 @@
           required
         />
       </label>
-      <label>
+      <label style="display: flex">
         <input type="checkbox" name="no_replies" />
-        Exclude reply posts?
+        <div>
+          Exclude reply posts?
+          <span class="help-text">
+            Note that for users who mostly reply, this may cause the feed to be
+            empty.
+          </span>
+        </div>
       </label>
       <label>
-        <input type="checkbox" name="no_reposts" disabled />
-        Exclude reposts? (not implemented yet)
+        <input type="checkbox" name="yes_reposts" />
+        <div>
+          Include reposts?
+          <span class="help-text">
+            This makes the feed take longer to generate, due to limitations of
+            the logged-out Bluesky API.
+          </span>
+        </div>
       </label>
       <span>Feed type:</span>
       <label>
         <input type="radio" name="feed_type" value="rss" checked required />
-        RSS
+        <div>
+          RSS
+          <span class="help-text">
+            The most compatible standard. Also supports in-browser preview, if
+            you'd like to check the results before adding it to your feed
+            reader.
+          </span>
+        </div>
       </label>
       <label>
         <input type="radio" name="feed_type" value="jsonfeed" />
-        JSON Feed
+        <div>
+          JSON Feed
+          <span class="help-text">
+            Newer standard that supports profile images in the headers of some
+            RSS readers.
+          </span>
+        </div>
       </label>
       <div class="backwards">
         <input type="submit" value="Generate" />

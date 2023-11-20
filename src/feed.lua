@@ -133,7 +133,11 @@ end
 local function renderItemText(item, profileData, itemUri)
     local result = {}
     local authors = {}
-    table.insert(authors, profileData)
+    if item["$type"] == "app.bsky.feed.repost" then
+        table.insert(authors, item.authorProfile)
+    else
+        table.insert(authors, profileData)
+    end
     -- Replies
     if item.value and item.value.reply then
         local reply = item.value.reply
@@ -381,6 +385,26 @@ local function prefetchQuotePosts(records)
     return true
 end
 
+local function prefetchReposts(records)
+    for _, item in ipairs(records) do
+        local repost = item.value.subject
+        if repost then
+            print("Fetching repost data for " .. repost.uri)
+            local ok, repostData = fetchPost(repost.uri)
+            if not ok then
+                print(repostData)
+                item.error = repostData
+            else
+                print("Repost data: " .. EncodeJson(repostData))
+                for key, value in pairs(repostData) do
+                    item[key] = value
+                end
+                item["$type"] = "app.bsky.feed.repost"
+            end
+        end
+    end
+end
+
 
 local function handle()
     if not HasParam("user") then
@@ -389,7 +413,7 @@ local function handle()
     end
     local user = GetParam("user")
     local noReplies = HasParam("no_replies")
-    local noReposts = false
+    local yesReposts = HasParam("yes_reposts")
     local feedType = "rss"
     if HasParam("feed_type") then
         local requestedType = GetParam("feed_type")
@@ -404,35 +428,63 @@ local function handle()
         end
         feedType = requestedType
     end
-    local bodyTable = bsky.xrpc.getJsonOrErr("com.atproto.repo.listRecords",
+    local postTable = bsky.xrpc.getJsonOrErr("com.atproto.repo.listRecords",
     {
         repo = user,
         collection = "app.bsky.feed.post",
         limit = 20
     })
-
-    if not bodyTable then
+    if not postTable then
+        error({
+            status = 500,
+            status_msg = "Internal Server Error",
+            headers = {},
+            body = "No response from Bluesky"
+        })
         return
     end
+    -- Reposts are fetched separately (sadly). If the user asked for
+    -- them, fetch them too and sort them into the same table as the
+    -- regular posts.
+    if yesReposts then
+        print("Fetching reposts...")
+        local repostTable = bsky.xrpc.getJsonOrErr(
+            "com.atproto.repo.listRecords",
+            {
+                repo = user,
+                collection = "app.bsky.feed.repost",
+                limit = 20
+            }
+        )
+        if repostTable and repostTable.records then
+            print("Got " .. #repostTable.records .. " repost(s)")
+            prefetchReposts(repostTable.records)
+            for _, repost in ipairs(repostTable.records) do
+                table.insert(postTable.records, repost)
+            end
+            local cmp = function(a, b)
+                -- Sort so that the newest data is at the top of the feed.
+                return a.value.createdAt > b.value.createdAt
+            end
+            table.sort(postTable.records, cmp)
+        end
+    end
+
     if noReplies then
         local postsWithoutReplies = {}
-        for _, item in ipairs(bodyTable.records) do
+        for _, item in ipairs(postTable.records) do
             if not item.value.reply then
                 table.insert(postsWithoutReplies, item)
             end
         end
-        bodyTable.records = postsWithoutReplies
+        postTable.records = postsWithoutReplies
     else
-        if not prefetchReplies(bodyTable.records) then
+        if not prefetchReplies(postTable.records) then
             return
         end
-        if not prefetchQuotePosts(bodyTable.records) then
+        if not prefetchQuotePosts(postTable.records) then
             return
         end
-    end
-    if noReposts then
-        -- TODO: exclude reposts
-        local _ = 0
     end
     local profileData = getProfile(user)
     if not profileData then
@@ -442,10 +494,10 @@ local function handle()
     if feedType == "rss" then
         SetHeader("Content-Type", "application/xml; charset=utf-8")
         SetHeader("x-content-type-options", "nosniff")
-        Write(rss.render(bodyTable.records, profileData, renderItemText))
+        Write(rss.render(postTable.records, profileData, renderItemText))
     elseif feedType == "jsonfeed" then
         SetHeader("Content-Type", "application/feed+json")
-        Write(jsonfeed.render(bodyTable.records, profileData, renderItemText))
+        Write(jsonfeed.render(postTable.records, profileData, renderItemText))
     end
 end
 

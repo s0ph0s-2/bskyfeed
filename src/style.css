@@ -7,8 +7,19 @@ body {
   margin: 2em auto;
 }
 form > * {
+  display: flex;
+  margin: 0.4em 0;
+}
+form > * div {
+  margin-left: 0.25em;
+}
+form > * div:first-child {
+  margin-left: 0;
+  margin-right: 0.25em;
+}
+.help-text {
+  font-size: 0.8rem;
   display: block;
-  margin: 0.3em;
 }
 .home-container {
   max-width: 22em;

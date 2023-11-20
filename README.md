@@ -16,13 +16,13 @@ Atom feeds require every entry to have a title. For a social media service where
 
 1. Clone this repo
 2. `cd bskyfeed`
-3. `make -C src`
+3. `make`
 4. Run `bskyfeed.com`
 5. Open `http://localhost:8080`
 
 # Planned enhancements
 
-- [ ] Filtering out replies and reposts
+- [x] Filtering out replies and reposts
 
   - Somewhat more complicated than it seems, because I want to make sure the feed still has 10 items in it after the filtering, if possible.
 
