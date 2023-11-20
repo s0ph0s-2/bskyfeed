@@ -180,7 +180,6 @@ function TestRss:testRssGeneratesFeedWithNoPosts()
     local renderer = function () rendererNotCalled = false end
     local result = rss.render({}, profile, renderer)
 
-    print(result)
     luaunit.assertIsTrue(rendererNotCalled)
     assertEqualsLongStr(
         result,
