@@ -60,6 +60,7 @@ hr {
   border: 1px dashed gray;
 }
 .post {
+  padding-bottom: 0.25em;
   border-bottom: 1px solid gray;
 }
 .post:last-child {

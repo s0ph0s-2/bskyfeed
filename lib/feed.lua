@@ -1,21 +1,15 @@
-local xml = require "xml"
-local bsky = require "bsky"
-local rss = require "rss"
-local jsonfeed = require "jsonfeed"
-
-
 local function mapMentionFacet(item, facet, feature, result)
-    local link = xml.tag(
+    local link = Xml.tag(
         "a", false, { href = "https://bsky.app/profile/" .. feature.did },
-        xml.text(string.sub(item.value.text, facet.index.byteStart + 1, facet.index.byteEnd))
+        Xml.text(string.sub(item.value.text, facet.index.byteStart + 1, facet.index.byteEnd))
     )
     table.insert(result, link)
 end
 
 local function mapLinkFacet(item, facet, feature, result)
-    local link = xml.tag(
+    local link = Xml.tag(
         "a", false, { href = feature.uri },
-        xml.text(string.sub(item.value.text, facet.index.byteStart + 1, facet.index.byteEnd))
+        Xml.text(string.sub(item.value.text, facet.index.byteStart + 1, facet.index.byteEnd))
     )
     table.insert(result, link)
 end
@@ -27,24 +21,24 @@ local facetMap = {
 }
 
 local function mapExternalEmbed(_, embed, result)
-    table.insert(result, xml.tag("hr", true))
-    local preview = xml.tag(
+    table.insert(result, Xml.tag("hr", true))
+    local preview = Xml.tag(
         "div", false,
-        xml.tag(
+        Xml.tag(
             "a", false, { href = embed.external.uri },
-            xml.tag("h3", false, xml.text(embed.external.title)),
-            xml.tag(
+            Xml.tag("h3", false, Xml.text(embed.external.title)),
+            Xml.tag(
                 "span", false, { style = "font-size:0.75rem" },
-                xml.text(embed.external.uri)
+                Xml.text(embed.external.uri)
             )
         ),
-        xml.tag("p", false, xml.text(embed.external.description))
+        Xml.tag("p", false, Xml.text(embed.external.description))
     )
     table.insert(result, preview)
 end
 
 local function mapImagesEmbed(item, embed, result)
-    table.insert(result, xml.tag("hr", true))
+    table.insert(result, Xml.tag("hr", true))
     table.insert(result, "<div style='display:flex;flex-wrap:wrap'>")
     local style = ""
     if #embed.images == 2 then
@@ -55,7 +49,7 @@ local function mapImagesEmbed(item, embed, result)
         style = "width:50%"
     end
     for _, image in ipairs(embed.images) do
-        local ok, src = bsky.uri.image.feedHttp(
+        local ok, src = Bsky.uri.image.feedHttp(
             item.uri,
             image.image.ref["$link"],
             image.image.mimeType
@@ -70,12 +64,12 @@ local function mapImagesEmbed(item, embed, result)
                 attrs.width = image.aspectRatio.width
                 attrs.height = image.aspectRatio.height
             end
-            local imgTag = xml.tag("img", true, attrs)
+            local imgTag = Xml.tag("img", true, attrs)
             table.insert(result, imgTag)
         else
-            table.insert(result, xml.tag(
+            table.insert(result, Xml.tag(
                 "p", false,
-                xml.text(
+                Xml.text(
                     "Broken image: Post("
                     .. item.uri
                     .. "); Image("
@@ -103,14 +97,14 @@ local function generateAuthorBlock(author)
         host = "bsky.app",
         path = "/profile/" .. author.did
     })
-    return xml.tag(
+    return Xml.tag(
         "a", false, { href = authorProfileLink },
-        xml.tag(
+        Xml.tag(
             "b", false,
-            xml.text(author.displayName)
+            Xml.text(author.displayName)
         ),
-        xml.tag("br", true),
-        xml.text("@" .. author.handle)
+        Xml.tag("br", true),
+        Xml.text("@" .. author.handle)
     )
 end
 
@@ -145,12 +139,12 @@ local function renderItemText(item, profileData, itemUri)
         if reply.parent.error or not reply.parent.authorProfile then
             local error = reply.parent.error
             if not error then
-                table.insert(result, xml.tag(
-                    "blockquote", false, xml.tag(
+                table.insert(result, Xml.tag(
+                    "blockquote", false, Xml.tag(
                         "i", false,
-                        xml.text("("),
-                        xml.tag("a", false, {
-                            href = bsky.uri.assemble(
+                        Xml.text("("),
+                        Xml.tag("a", false, {
+                            href = Bsky.uri.assemble(
                                 "https",
                                 "skyview.social",
                                 "/",
@@ -158,21 +152,21 @@ local function renderItemText(item, profileData, itemUri)
                                     url = itemUri
                                 })
                             },
-                            xml.text("view full reply chain on skyview.social")
+                            Xml.text("view full reply chain on skyview.social")
                         ),
-                        xml.text(")")
+                        Xml.text(")")
                     )
                 ))
             end
-            table.insert(result, xml.tag(
-                "blockquote", false, xml.tag(
-                    "i", false, xml.text(reply.parent.error)
+            table.insert(result, Xml.tag(
+                "blockquote", false, Xml.tag(
+                    "i", false, Xml.text(reply.parent.error)
                 )
             ))
             -- print("Error while trying to render " .. EncodeJson(item))
         else
             local quoteText, quoteAuthors = renderItemText(reply.parent, reply.parent.authorProfile, itemUri)
-            local quote = xml.tag(
+            local quote = Xml.tag(
                 "blockquote", false,
                 generateAuthorBlock(reply.parent.authorProfile),
                 quoteText
@@ -232,9 +226,12 @@ local function renderItemText(item, profileData, itemUri)
 end
 
 local function mapRecordEmbed(_, embed, result, authors)
+    if not embed.value then
+        return
+    end
     local embedPost = embed.value
     local embedAuthor = embed.value.authorProfile
-    local ok, embedUri = bsky.uri.post.toHttp(embedPost.uri)
+    local ok, embedUri = Bsky.uri.post.toHttp(embedPost.uri)
     if not ok then
         embedUri = embedPost.uri
     end
@@ -246,7 +243,7 @@ local function mapRecordEmbed(_, embed, result, authors)
     for _, author in ipairs(embedAuthors) do
         table.insert(authors, author)
     end
-    table.insert(result, xml.tag(
+    table.insert(result, Xml.tag(
         "blockquote", false, generateAuthorBlock(embedAuthor), embeddedPost
     ))
 end
@@ -273,7 +270,7 @@ local function getProfile(user)
             return cachedProfile
         end
     end
-    local ok, profileData = pcall(bsky.xrpc.getJsonOrErr, "com.atproto.repo.listRecords", {
+    local ok, profileData = pcall(Bsky.xrpc.getJsonOrErr, "com.atproto.repo.listRecords", {
         repo = user,
         limit = 1,
         collection = "app.bsky.actor.profile"
@@ -293,11 +290,11 @@ local function getProfile(user)
         return unknownUser
     end
     local p = profileData.records[1]
-    local handle, did = bsky.user.getHandleAndDid(user)
+    local handle, did = Bsky.user.getHandleAndDid(user)
     if not handle or not did then
         return unknownUser
     end
-    local avatarUri = bsky.uri.image.profileHttp(did, p.value.avatar.ref["$link"], p.value.avatar.mimeType)
+    local avatarUri = Bsky.uri.image.profileHttp(did, p.value.avatar.ref["$link"], p.value.avatar.mimeType)
     local justTheGoodParts = {
         displayName = p.value.displayName,
         description = p.value.description,
@@ -318,18 +315,18 @@ local function fetchPost(uri)
             return true, cachedPost
         end
     end
-    local ok, method, params = bsky.uri.post.toXrpcParams(uri)
+    local ok, method, params = Bsky.uri.post.toXrpcParams(uri)
     if not ok then
         return false, "(Invalid post URI)"
     end
-    local ok2, postData = pcall(bsky.xrpc.getJsonOrErr, method, params)
+    local ok2, postData = pcall(Bsky.xrpc.getJsonOrErr, method, params)
     if not ok2 then
         return false, "(This post has been deleted)"
     end
     if postData == nil then
         return false, "(Invalid response from Bluesky)"
     end
-    local ok3, postProfileDid = bsky.did.fromUri(postData.uri)
+    local ok3, postProfileDid = Bsky.did.fromUri(postData.uri)
     if not ok3 then
         return false, "(Invalid profile URI for parent post)"
     end
@@ -388,13 +385,13 @@ local function prefetchReposts(records)
     for _, item in ipairs(records) do
         local repost = item.value.subject
         if repost then
-            print("Fetching repost data for " .. repost.uri)
+            -- print("Fetching repost data for " .. repost.uri)
             local ok, repostData = fetchPost(repost.uri)
             if not ok then
-                print(repostData)
+                -- print(repostData)
                 item.error = repostData
             else
-                print("Repost data: " .. EncodeJson(repostData))
+                -- print("Repost data: " .. EncodeJson(repostData))
                 for key, value in pairs(repostData) do
                     item[key] = value
                 end
@@ -405,29 +402,20 @@ local function prefetchReposts(records)
 end
 
 
-local function handle()
-    if not HasParam("user") then
-        SetStatus(400, "Missing required parameter 'user'")
-        return
-    end
-    local user = GetParam("user")
+local function handle(user, feedType)
     local noReplies = HasParam("no_replies")
     local yesReposts = HasParam("yes_reposts")
     local feedType = "rss"
-    if HasParam("feed_type") then
-        local requestedType = GetParam("feed_type")
-        if requestedType ~= "rss" and requestedType ~= "jsonfeed" then
-            error({
-                status = 400,
-                status_msg = "Bad Request",
-                headers = {},
-                body = "Feed type must be 'rss' or 'jsonfeed', not " .. requestedType
-            })
-            return
-        end
-        feedType = requestedType
+    if feedType ~= "rss" and feedType ~= "jsonfeed" then
+        error({
+            status = 400,
+            status_msg = "Bad Request",
+            headers = {},
+            body = "Feed type must be 'rss' or 'jsonfeed', not " .. feedType
+        })
+        return
     end
-    local postTable = bsky.xrpc.getJsonOrErr("com.atproto.repo.listRecords",
+    local postTable = Bsky.xrpc.getJsonOrErr("com.atproto.repo.listRecords",
     {
         repo = user,
         collection = "app.bsky.feed.post",
@@ -446,8 +434,8 @@ local function handle()
     -- them, fetch them too and sort them into the same table as the
     -- regular posts.
     if yesReposts then
-        print("Fetching reposts...")
-        local repostTable = bsky.xrpc.getJsonOrErr(
+        -- print("Fetching reposts...")
+        local repostTable = Bsky.xrpc.getJsonOrErr(
             "com.atproto.repo.listRecords",
             {
                 repo = user,
@@ -456,7 +444,7 @@ local function handle()
             }
         )
         if repostTable and repostTable.records then
-            print("Got " .. #repostTable.records .. " repost(s)")
+            -- print("Got " .. #repostTable.records .. " repost(s)")
             prefetchReposts(repostTable.records)
             for _, repost in ipairs(repostTable.records) do
                 table.insert(postTable.records, repost)
@@ -493,10 +481,10 @@ local function handle()
     if feedType == "rss" then
         SetHeader("Content-Type", "application/xml; charset=utf-8")
         SetHeader("x-content-type-options", "nosniff")
-        Write(rss.render(postTable.records, profileData, renderItemText))
+        Write(Rss.render(postTable.records, profileData, renderItemText))
     elseif feedType == "jsonfeed" then
         SetHeader("Content-Type", "application/feed+json")
-        Write(jsonfeed.render(postTable.records, profileData, renderItemText))
+        Write(Jsonfeed.render(postTable.records, profileData, renderItemText))
     end
 end
 
@@ -513,8 +501,9 @@ local function returnError(err)
     end
 end
 
-local ok, result = xpcall(handle, debug.traceback)
-if not ok then
-    returnError(result)
-end
--- handle()
+-- local ok, result = xpcall(handle, debug.traceback)
+-- if not ok then
+--     returnError(result)
+-- end
+
+return { handle = handle }

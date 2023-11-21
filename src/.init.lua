@@ -1,7 +1,14 @@
+Xml = require "xml"
+Bsky = require "bsky"
+Rss = require "rss"
+Jsonfeed = require "jsonfeed"
+Date = require "date"
 local about = require "about"
 local re = require 're'
 local sqlite3 = require 'lsqlite3'
+local feed = require "feed"
 AT_URI = re.compile[[^at://(did:[a-z0-9:]+)/app.bsky.feed.post/([a-z0-9]+)]]
+FEED_PATH = re.compile[[^/([A-z0-9:\.]+)/feed.(json|xml)$]]
 DB_FILE = 'bskyfeedCache.sqlite3'
 
 User_Agent = string.format(
@@ -162,9 +169,26 @@ function CleanCaches()
    db:close()
 end
 
+local extMap = {
+   xml = "rss",
+   json = "jsonfeed"
+}
+
 function OnHttpRequest()
-   setupSql()
+   local _, user, ext = FEED_PATH:search(GetPath())
+   if user and ext then
+      local feed_type = extMap[ext]
+      feed.handle(user, feed_type)
+      return
+   end
    Route()
+end
+
+function OnWorkerStart()
+   setupSql()
+   -- assert(unix.setrlimit(unix.RLIMIT_RSS, 100 * 1024 * 1024))
+   assert(unix.setrlimit(unix.RLIMIT_CPU, 4))
+   -- TODO: pledge, unveil
 end
 
 function OnServerHeartbeat()

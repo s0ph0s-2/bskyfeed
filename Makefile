@@ -8,9 +8,9 @@ LIBS := $(ABOUT_FILE) \
 	lib/date.lua \
 	lib/xml.lua \
 	lib/rss.lua \
+	lib/feed.lua \
 	lib/jsonfeed.lua
 SRCS := src/.init.lua \
-	src/feed.lua \
 	src/generate.lua \
 	src/rss.xsl \
 	src/index.html \

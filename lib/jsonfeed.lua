@@ -1,4 +1,3 @@
-local bsky = require("bsky")
 --
 -- MARK: JSON FEED TYPES
 --
@@ -27,7 +26,7 @@ local function generateItems(records, profileData, renderItemText)
         for _, author in ipairs(itemAuthors) do
             table.insert(authors, {
                 name = author.displayName,
-                url = bsky.uri.profile.fromDid(author.did),
+                url = Bsky.uri.profile.fromDid(author.did),
                 avatar = author.avatar
             })
         end
@@ -53,7 +52,7 @@ end
 --- @return (string) A valid JSON instance containing JSON Feed data describing the feed.
 local function render(records, profileData, renderItemText)
     local title = profileData.displayName .. " (Bluesky)"
-    local profileLink = bsky.uri.profile.fromDid(profileData.did)
+    local profileLink = Bsky.uri.profile.fromDid(profileData.did)
     local feed = {
         version = "https://jsonfeed.org/version/1.1",
         title = title,

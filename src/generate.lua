@@ -1,5 +1,3 @@
-local bsky = require "bsky"
-
 local function handle()
     local errors = {}
     if not HasParam("identifier") then
@@ -19,12 +17,12 @@ local function handle()
     end
     local identifier = string.lower(GetParam("identifier"))
     local feed_type = string.lower(GetParam("feed_type"))
-    if feed_type ~= "rss" and feed_type ~= "jsonfeed" then
+    if feed_type ~= "xml" and feed_type ~= "json" then
         error({
             status = 400,
             status_msg = "Bad Request",
             headers = {},
-            body = "feed_type must be either 'rss' or 'jsonfeed'."
+            body = "feed_type must be either 'xml' or 'json'."
         })
         return
     end
@@ -33,7 +31,7 @@ local function handle()
 
     local did = identifier
     if identifier:sub(1, 4) ~= "did:" then
-        local _, fetchedDid = bsky.user.getHandleAndDid(identifier)
+        local _, fetchedDid = Bsky.user.getHandleAndDid(identifier)
         if not fetchedDid then
             error({
                 status = 404,
@@ -48,10 +46,7 @@ local function handle()
         did = fetchedDid
     end
 
-    local params = {
-        { "user", did },
-        { "feed_type", feed_type }
-    }
+    local params = {}
     if no_replies then
         table.insert(params, { "no_replies" })
     end
@@ -59,7 +54,7 @@ local function handle()
         table.insert(params, { "yes_reposts" })
     end
     local visitor_url = ParseUrl(GetUrl())
-    visitor_url.path = "/feed.lua"
+    visitor_url.path = "/" .. did .. "/feed." .. feed_type
     visitor_url.params = params
 
     local feed_uri = EncodeUrl(visitor_url)
