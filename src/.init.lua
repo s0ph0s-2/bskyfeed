@@ -11,6 +11,8 @@ User_Agent = string.format(
     about.REDBEAN_VERSION
 )
 
+local heartbeatCounter = 0
+
 function SetupDb()
     if not unix.access(DB_FILE, unix.F_OK) then
         Db = sqlite3.open(DB_FILE)
@@ -73,9 +75,6 @@ local function setupSql()
                 ?,   ?,        datetime('now')
             );
         ]]
-
-        -- Cache cleanup query:
-        -- DELETE FROM PostCache WHERE (strftime('%s', 'now') - strftime('%s', cachedAt)) > (60 * 60 * 28);
    end
 end
 
@@ -143,7 +142,36 @@ function PutPostIntoCache(post)
     return false
 end
 
+function CleanCaches()
+   local db = sqlite3.open(DB_FILE)
+   db:busy_timeout(1000)
+   Log(kLogVerbose, "Cleaning post cache")
+   db:exec[[
+   DELETE FROM
+      PostCache
+   WHERE
+      (strftime('%s', 'now') - strftime('%s', cachedAt)) > (60 * 60 * 28);
+   ]]
+   Log(kLogVerbose, "Cleaning profile cache")
+   db:exec[[
+   DELETE FROM
+      ProfileCache
+   WHERE
+      (strftime('%s', 'now') - strftime('%s', cachedAt)) > (60 * 60 * 28);
+   ]]
+   db:close()
+end
+
 function OnHttpRequest()
    setupSql()
    Route()
+end
+
+function OnServerHeartbeat()
+   -- Clean the caches every 2 hours. Default heartbeat timer is every 5 seconds.
+   -- 2 * 60 * 60 / 5 = 1440
+   heartbeatCounter = (heartbeatCounter + 1) % 1440
+   if heartbeatCounter == 1 then
+      CleanCaches()
+   end
 end
