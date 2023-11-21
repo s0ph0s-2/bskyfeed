@@ -202,11 +202,11 @@ local function renderItemText(item, profileData, itemUri)
                         facetMapper(item, facet, feature, result)
                         nextSegementStartIdx = facet.index.byteEnd + 1
                     else
-                        print("Unrecognized facet feature: " .. feature["$type"])
+                        Log(kLogWarn, "Unrecognized facet feature: " .. feature["$type"])
                     end
                 end
             else
-                print("no features in facet?")
+                Log(kLogWarn, "No features in facet?")
             end
         end
     end
@@ -222,7 +222,7 @@ local function renderItemText(item, profileData, itemUri)
             embedMap[embedType](item, embed, result, authors)
         else
             if embedType then
-                print("Unrecognized embed type: " .. embedType)
+                Log(kLogWarn, "Unrecognized embed type: " .. embedType)
             else
                 Log(kLogWarn, "Nil embed type in " .. EncodeJson(item))
             end
@@ -320,7 +320,6 @@ local function fetchPost(uri)
     end
     local ok, method, params = bsky.uri.post.toXrpcParams(uri)
     if not ok then
-        print(method)
         return false, "(Invalid post URI)"
     end
     local ok2, postData = pcall(bsky.xrpc.getJsonOrErr, method, params)

@@ -54,6 +54,58 @@ local function assembleXrpcUri(xrpc_method, params)
     return result
 end
 
+--- Stochastically raise errors as the Bluesky rate limit is neared.
+--- The hope is that this is enough back-pressure to avoid exceeding the limit.
+--- @param headers (table) The response headers from a Bluesky API request.
+--- @return (boolean) True if the request is OK, false if a rate limit is near.
+local function errOnRateLimit(headers)
+    if not headers then
+        return true
+    end
+    local limit = headers["RateLimit-Limit"]
+    if not limit then
+        return true
+    end
+    local remaining = headers["RateLimit-Remaining"]
+    if not remaining then
+        return true
+    end
+    local later = "a few minutes"
+    if headers["RateLimit-Reset"] then
+        later = FormatHttpDateTime(headers["RateLimit-Reset"])
+    end
+    local percentLeft = remaining / limit
+    local random = string.byte(GetRandomBytes(1))
+    local threshold = 0
+    if percentLeft >= 0.5 then
+        return true
+    elseif percentLeft < 0.5 then
+        threshold = 127
+    elseif percentLeft < 0.25 then
+        threshold = 63
+    elseif percentLeft < 0.1 then
+        threshold = 15
+    elseif percentLeft < 0.05 then
+        threshold = 3
+    elseif percentLeft < 0.001 then
+        threshold = 1
+    end
+    if random > threshold then
+        error({
+            status = 429,
+            status_msg = "Too Many Requests",
+            headers = {
+                ["X-Bsky-RateLimit-Limit"] = limit,
+                ["X-Bsky-RateLimit-Remaining"] = remaining
+            },
+            body = "Please try again after " .. later .. "."
+        })
+        return false
+    else
+        return true
+    end
+end
+
 --- Make an HTTP request to the Bluesky API and decode the response JSON.
 --- @param http_method string The HTTP method to use for the request (probably GET)
 --- @param xrpc_method string The XRPC method to call in the Bluesky API.
@@ -88,11 +140,15 @@ local function request(http_method, xrpc_method, params, headers, body)
         "request: body must be a string or nil"
     )
     local uri = assembleXrpcUri(xrpc_method, params)
-    return Fetch(uri, {
+    local status, resp_headers, resp_body = Fetch(uri, {
         method = http_method,
         body = body,
         headers = headers
     })
+    if not errOnRateLimit(resp_headers) then
+        return 0, "rate limit exceeded", nil
+    end
+    return status, resp_headers, resp_body
 end
 
 --- Make an HTTP GET request to the Bluesky API and decode the response JSON.
@@ -127,6 +183,9 @@ local function getJsonOrErr(method, params, headers)
     local status, resp_headers, resp_body = Fetch(uri, {
         headers = headers
     })
+    if not errOnRateLimit(resp_headers) then
+        return nil
+    end
     if status == 200 then
         local bodyObj, error = DecodeJson(resp_body)
         if not bodyObj then
