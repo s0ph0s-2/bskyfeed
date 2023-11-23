@@ -272,12 +272,12 @@ end
 local function makeFeedImageHttpUri(post_atproto_uri, image_id, content_type)
     local m, did, _ = AT_URI:search(post_atproto_uri) -- luacheck: ignore
     if m then
-        local _, format = split(content_type, "/")
+        -- local _, format = split(content_type, "/")
         return m, string.format(
             "https://cdn.bsky.app/img/feed_thumbnail/plain/%s/%s@%s",
             did,
             image_id,
-            format
+            "jpeg"
         )
     else
         return nil, did
