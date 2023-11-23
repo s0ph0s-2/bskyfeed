@@ -38,6 +38,10 @@ local function mapExternalEmbed(_, embed, result)
 end
 
 local function mapImagesEmbed(item, embed, result)
+    if not embed or not embed.images then
+        Log(kLogWarn, "No images field in images embed? Item: " .. item.uri)
+        return
+    end
     table.insert(result, Xml.tag("hr", true))
     table.insert(result, "<div style='display:flex;flex-wrap:wrap'>")
     local style = ""
@@ -294,6 +298,15 @@ local function getProfile(user)
     if not handle or not did then
         return unknownUser
     end
+    if not p.value.avatar then
+        Log(kLogVerbose, "No avatar field in profile?")
+        return {
+            displayName = p.value.displayName,
+            description = p.value.description,
+            handle = handle,
+            did = did
+        }
+    end
     local avatarUri = Bsky.uri.image.profileHttp(did, p.value.avatar.ref["$link"], p.value.avatar.mimeType)
     local justTheGoodParts = {
         displayName = p.value.displayName,
@@ -405,7 +418,6 @@ end
 local function handle(user, feedType)
     local noReplies = HasParam("no_replies")
     local yesReposts = HasParam("yes_reposts")
-    local feedType = "rss"
     if feedType ~= "rss" and feedType ~= "jsonfeed" then
         error({
             status = 400,
@@ -483,7 +495,7 @@ local function handle(user, feedType)
         SetHeader("x-content-type-options", "nosniff")
         Write(Rss.render(postTable.records, profileData, renderItemText))
     elseif feedType == "jsonfeed" then
-        SetHeader("Content-Type", "application/feed+json")
+        -- SetHeader("Content-Type", "application/feed+json")
         Write(Jsonfeed.render(postTable.records, profileData, renderItemText))
     end
 end

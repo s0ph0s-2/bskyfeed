@@ -17,7 +17,7 @@
 local function generateItems(records, profileData, renderItemText)
     local items = {}
     for _, record in pairs(records) do
-        local ok, uri = bsky.uri.post.toHttp(record.uri)
+        local ok, uri = Bsky.uri.post.toHttp(record.uri)
         if not ok then
             uri = record.uri
         end
@@ -60,11 +60,11 @@ local function render(records, profileData, renderItemText)
         feed_url = GetUrl(),
         description = "Posts on Bluesky by " .. profileData.displayName,
         icon = profileData.avatar,
-        authors = {
+        authors = { {
             name = profileData.displayName,
             url = profileLink,
             avatar = profileData.avatar,
-        },
+        } },
         items = generateItems(records, profileData, renderItemText)
     }
     return EncodeJson(feed)

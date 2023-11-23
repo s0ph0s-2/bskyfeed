@@ -186,9 +186,12 @@ end
 
 function OnWorkerStart()
    setupSql()
+   -- This fails with EINVAL
    -- assert(unix.setrlimit(unix.RLIMIT_RSS, 100 * 1024 * 1024))
+
    assert(unix.setrlimit(unix.RLIMIT_CPU, 4))
-   -- TODO: pledge, unveil
+   assert(unix.unveil(nil, nil))
+   -- assert(unix.pledge("stdio inet dns"))
 end
 
 function OnServerHeartbeat()
