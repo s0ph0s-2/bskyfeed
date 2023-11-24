@@ -208,7 +208,7 @@ local function renderItemText(item, profileData, itemUri)
             end
         end
     end
-    if item.value then
+    if item.value and item.value.text then
         table.insert(result, string.sub(item.value.text, nextSegementStartIdx))
     end
     table.insert(result, "</p>")
