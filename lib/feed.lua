@@ -352,44 +352,55 @@ local function fetchPost(uri)
     return true, postData
 end
 
-local function prefetchReplies(records)
-    for _, item in ipairs(records) do
-        local reply = item.value.reply
-        if reply then
-            -- TODO: also get root?
-            local ok, postData = fetchPost(reply.parent.uri)
+local function prefetchQuotePost(record, depth)
+    if depth > 2 then
+        Log(kLogWarn, "Recursion depth exceeded while processing " .. EncodeJson(record))
+        return
+    end
+    local embed = record.value.embed
+    if embed then
+        if embed["$type"] == "app.bsky.embed.record" then
+            local ok, postData = fetchPost(embed.record.uri)
             if not ok then
-                reply.parent.error = postData
+                embed.error = postData
             else
-                reply.parent = postData
+                embed.value = postData
+            end
+        elseif embed["$type"] == "app.bsky.embed.recordWithMedia" then
+            local ok, postData = fetchPost(embed.record.record.uri)
+            if not ok then
+                embed.error = postData
+            else
+                embed.value = postData
+                embed.uri = embed.record.record.uri
+                embed.images = embed.media.images
             end
         end
     end
-    return true
 end
 
-local function prefetchQuotePosts(records)
-    for _, item in ipairs(records) do
-        local embed = item.value.embed
-        if embed then
-            if embed["$type"] == "app.bsky.embed.record" then
-                local ok, postData = fetchPost(embed.record.uri)
-                if not ok then
-                    embed.error = postData
-                else
-                    embed.value = postData
-                end
-            elseif embed["$type"] == "app.bsky.embed.recordWithMedia" then
-                local ok, postData = fetchPost(embed.record.record.uri)
-                if not ok then
-                    embed.error = postData
-                else
-                    embed.value = postData
-                    embed.uri = embed.record.record.uri
-                    embed.images = embed.media.images
-                end
-            end
+local function prefetchReply(record, depth)
+    if depth > 2 then
+        Log(kLogWarn, "Recursion depth exceeded while processing " .. EncodeJson(record))
+        return
+    end
+    local reply = record.value.reply
+    if reply then
+        -- TODO: also get root?
+        local ok, postData = fetchPost(reply.parent.uri)
+        if not ok then
+            reply.parent.error = postData
+        else
+            reply.parent = postData
+            prefetchQuotePost(reply.parent, depth + 1)
         end
+    end
+end
+
+local function prefetchSpecialPosts(records)
+    for _, record in ipairs(records) do
+        prefetchReply(record, 1)
+        prefetchQuotePost(record, 1)
     end
     return true
 end
@@ -478,10 +489,7 @@ local function handle(user, feedType)
         end
         postTable.records = postsWithoutReplies
     else
-        if not prefetchReplies(postTable.records) then
-            return
-        end
-        if not prefetchQuotePosts(postTable.records) then
+        if not prefetchSpecialPosts(postTable.records) then
             return
         end
     end
