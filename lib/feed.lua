@@ -450,7 +450,7 @@ local function prefetchReposts(records)
             local ok, repostData = fetchPost(repost.uri)
             if not ok then
                 item.error = repostData
-                Log(kLogWarn, "Repost error: " .. repostData)
+                Log(kLogVerbose, "Repost fetch error: " .. repostData)
             else
                 -- print("Repost data: " .. EncodeJson(repostData))
                 for key, value in pairs(repostData) do
