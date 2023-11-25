@@ -7,7 +7,7 @@ local about = require "about"
 local re = require 're'
 local sqlite3 = require 'lsqlite3'
 local feed = require "feed"
-AT_URI = re.compile[[^at://(did:[a-z0-9:]+)/app\.bsky\.feed\.post/([a-z0-9]+)]]
+AT_URI = re.compile[[^at://(did:[a-z0-9:]+)/app\.bsky\.feed\.(re)?post/([a-z0-9]+)]]
 FEED_PATH = re.compile[[^/([A-z0-9:\.]+)/feed\.(json|xml)$]]
 DB_FILE = 'bskyfeedCache.sqlite3'
 

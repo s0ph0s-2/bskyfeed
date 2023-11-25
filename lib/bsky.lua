@@ -222,7 +222,7 @@ end
 --- @return string An HTTPS URI for that post on the Bluesky website, or garbage
 --- otherwise.
 local function atUriToHttpUri(at_uri)
-    local m, did, post_id = AT_URI:search(at_uri) -- luacheck: ignore
+    local m, did, _, post_id = AT_URI:search(at_uri) -- luacheck: ignore
     if m then
         return "ok", string.format("https://bsky.app/profile/%s/post/%s", did, post_id)
     else
@@ -236,7 +236,7 @@ end
 --- @return string An XRPC method name if the input was an expected post URI, or an error message otherwise.
 --- @return table|nil A table of request parameters if the input was an expected post URI, nil otherwise.
 local function atPostUriToXrpcPostUri(at_uri)
-    local m, did, post_id = AT_URI:search(at_uri) -- luacheck: ignore
+    local m, did, _, post_id = AT_URI:search(at_uri) -- luacheck: ignore
     if m then
         return "ok", "com.atproto.repo.getRecord", {
             repo = did,
@@ -270,7 +270,7 @@ end
 --- @return (string) The desired HTTP image url if the URL could be created,
 ---         unspecified string data otherwise.
 local function makeFeedImageHttpUri(post_atproto_uri, image_id, content_type)
-    local m, did, _ = AT_URI:search(post_atproto_uri) -- luacheck: ignore
+    local m, did, _, _ = AT_URI:search(post_atproto_uri) -- luacheck: ignore
     if m then
         -- local _, format = split(content_type, "/")
         return m, string.format(
@@ -307,7 +307,7 @@ end
 --- @return (string) The user's DID if the URI was an expected post URI,
 ---         unspecified string data otherwise.
 local function getDidFromUri(uri)
-    local m, did, _ = AT_URI:search(uri) -- luacheck: ignore
+    local m, did, _, _ = AT_URI:search(uri) -- luacheck: ignore
     return m, did
 end
 
