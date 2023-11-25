@@ -54,7 +54,7 @@ local function mapImagesEmbed(item, embed, result)
         return
     end
     table.insert(result, Xml.tag("hr", true))
-    table.insert(result, "<div style='display:flex;flex-wrap:wrap'>")
+    table.insert(result, "<div style='display:flex;flex-wrap:wrap;align-items:flex-start'>")
     local style = ""
     if #embed.images == 2 then
         style = "width:50%"
@@ -63,9 +63,15 @@ local function mapImagesEmbed(item, embed, result)
     elseif #embed.images == 4 then
         style = "width:50%"
     end
+    -- Reposts need to fetch images based on the ID of the post that has been
+    -- reposted, not based on the ID of the pointer post.
+    local itemBaseUri = item.uri
+    if item.value.subject and item.value.subject.uri then
+        itemBaseUri = item.value.subject.uri
+    end
     for _, image in ipairs(embed.images) do
         local ok, src = Bsky.uri.image.feedHttp(
-            item.uri,
+            itemBaseUri,
             image.image.ref["$link"],
             image.image.mimeType
         )
@@ -162,7 +168,8 @@ end
 local function renderItemText(item, profileData, itemUri)
     local result = {}
     local authors = {}
-    if item["$type"] == "app.bsky.feed.repost" then
+    Log(kLogDebug, "Item: " .. EncodeJson(item))
+    if item.value["$type"] == "app.bsky.feed.repost" then
         table.insert(authors, item.authorProfile)
     else
         table.insert(authors, profileData)
@@ -452,11 +459,12 @@ local function prefetchReposts(records)
                 item.error = repostData
                 Log(kLogVerbose, "Repost fetch error: " .. repostData)
             else
-                -- print("Repost data: " .. EncodeJson(repostData))
-                for key, value in pairs(repostData) do
-                    item[key] = value
+                local originalType = item.value["$type"]
+                for key, value in pairs(repostData.value) do
+                    item.value[key] = value
                 end
-                item["$type"] = "app.bsky.feed.repost"
+                item.value["$type"] = originalType
+                item.authorProfile = repostData.authorProfile
             end
         end
     end
@@ -525,11 +533,10 @@ local function handle(user, feedType)
             end
         end
         postTable.records = postsWithoutReplies
-    else
-        if not prefetchSpecialPosts(postTable.records) then
-            Log(kLogWarn, "Failed to prefetch posts")
-            return
-        end
+    end
+    if not prefetchSpecialPosts(postTable.records) then
+        Log(kLogWarn, "Failed to prefetch posts")
+        return
     end
     local profileData = getProfile(user)
     if not profileData then
