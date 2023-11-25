@@ -1,3 +1,5 @@
+local MAX_REPLY_OR_EMBED_RECURSION = 2
+
 local function mapMentionFacet(item, facet, feature, result)
     local link = Xml.tag(
         "a", false, { href = "https://bsky.app/profile/" .. feature.did },
@@ -48,7 +50,7 @@ end
 
 local function mapImagesEmbed(item, embed, result)
     if not embed or not embed.images then
-        Log(kLogWarn, "No images field in images embed? Item: " .. item.uri)
+        Log(kLogWarn, "No images field in images embed? Item: " .. EncodeJson(item))
         return
     end
     table.insert(result, Xml.tag("hr", true))
@@ -128,6 +130,26 @@ local function reprocessNewlines(textContent)
     return breaks
 end
 
+local function linkToSkyview(postUri)
+    return Xml.tag(
+        "p", false, Xml.tag(
+            "i", false,
+            Xml.text("("),
+            Xml.tag("a", false, {
+                href = Bsky.uri.assemble(
+                    "https",
+                    "skyview.social",
+                    "/",
+                    { url = postUri }
+                )
+            },
+            Xml.text("see more on skyview.social")
+        ),
+        Xml.text(")")
+        )
+    )
+end
+
 --- Render a Bluesky record into HTML for a feed reader.
 --- @param item (table) The Bluesky post/record to render.
 --- @param profileData (Profile) The profile of the person who wrote the item.
@@ -145,38 +167,30 @@ local function renderItemText(item, profileData, itemUri)
     else
         table.insert(authors, profileData)
     end
+    if item.too_deep then
+        table.insert(result, linkToSkyview(itemUri))
+        return table.concat(result), authors
+    end
+    if item.error then
+        table.insert(result, Xml.tag(
+            "i", false, Xml.text(item.error)
+        ))
+        return table.concat(result), authors
+    end
     -- Replies
     if item.value and item.value.reply then
         local reply = item.value.reply
-        -- print("renderItemText: reply: " .. EncodeJson(reply))
-        if reply.parent.error or not reply.parent.authorProfile then
+        if reply.parent.error or not reply.parent.authorProfile or reply.too_deep then
             local error = reply.parent.error
             if not error then
+                table.insert(result, linkToSkyview(itemUri))
+            else
                 table.insert(result, Xml.tag(
                     "blockquote", false, Xml.tag(
-                        "i", false,
-                        Xml.text("("),
-                        Xml.tag("a", false, {
-                            href = Bsky.uri.assemble(
-                                "https",
-                                "skyview.social",
-                                "/",
-                                {
-                                    url = itemUri
-                                })
-                            },
-                            Xml.text("view full reply chain on skyview.social")
-                        ),
-                        Xml.text(")")
+                        "i", false, Xml.text(reply.parent.error)
                     )
                 ))
             end
-            table.insert(result, Xml.tag(
-                "blockquote", false, Xml.tag(
-                    "i", false, Xml.text(reply.parent.error)
-                )
-            ))
-            -- print("Error while trying to render " .. EncodeJson(item))
         else
             local quoteText, quoteAuthors = renderItemText(reply.parent, reply.parent.authorProfile, itemUri)
             local quote = Xml.tag(
@@ -361,21 +375,29 @@ local function fetchPost(uri)
     return true, postData
 end
 
-local function prefetchQuotePost(record, depth)
-    if depth > 2 then
-        Log(kLogWarn, "Recursion depth exceeded while processing " .. EncodeJson(record))
+local prefetchQuotePost
+local prefetchReply
+
+prefetchQuotePost = function (record, depth)
+    if depth > MAX_REPLY_OR_EMBED_RECURSION then
+        Log(kLogVerbose, "Recursion depth exceeded while processing " .. EncodeJson(record))
+        record.too_deep = true
         return
     end
     local embed = record.value.embed
     if embed then
         if embed["$type"] == "app.bsky.embed.record" then
+            Log(kLogDebug, "Processing embedded record: " .. EncodeJson(embed))
             local ok, postData = fetchPost(embed.record.uri)
             if not ok then
                 embed.error = postData
             else
                 embed.value = postData
+                prefetchReply(embed.value, depth + 1)
+                prefetchQuotePost(embed.value, depth + 1)
             end
         elseif embed["$type"] == "app.bsky.embed.recordWithMedia" then
+            Log(kLogDebug, "Processing embedded record with media: " .. EncodeJson(embed))
             local ok, postData = fetchPost(embed.record.record.uri)
             if not ok then
                 embed.error = postData
@@ -383,14 +405,19 @@ local function prefetchQuotePost(record, depth)
                 embed.value = postData
                 embed.uri = embed.record.record.uri
                 embed.images = embed.media.images
+                prefetchReply(embed.value, depth + 1)
+                prefetchQuotePost(embed.value, depth + 1)
             end
+        else
+            Log(kLogVerbose, "No prefetch required for embed type: " .. embed["$type"])
         end
     end
 end
 
-local function prefetchReply(record, depth)
-    if depth > 2 then
-        Log(kLogWarn, "Recursion depth exceeded while processing " .. EncodeJson(record))
+prefetchReply = function(record, depth)
+    if depth > MAX_REPLY_OR_EMBED_RECURSION then
+        Log(kLogVerbose, "Recursion depth exceeded while processing " .. EncodeJson(record))
+        record.too_deep = true
         return
     end
     local reply = record.value.reply
@@ -401,6 +428,7 @@ local function prefetchReply(record, depth)
             reply.parent.error = postData
         else
             reply.parent = postData
+            prefetchReply(reply.parent, depth + 1)
             prefetchQuotePost(reply.parent, depth + 1)
         end
     end
@@ -421,8 +449,8 @@ local function prefetchReposts(records)
             -- print("Fetching repost data for " .. repost.uri)
             local ok, repostData = fetchPost(repost.uri)
             if not ok then
-                -- print(repostData)
                 item.error = repostData
+                Log(kLogWarn, "Repost error: " .. repostData)
             else
                 -- print("Repost data: " .. EncodeJson(repostData))
                 for key, value in pairs(repostData) do
@@ -509,6 +537,7 @@ local function handle(user, feedType)
         return
     end
 
+    Log(kLogDebug, "Full post table data: " .. EncodeJson(postTable))
     if feedType == "rss" then
         SetHeader("Content-Type", "application/xml; charset=utf-8")
         SetHeader("x-content-type-options", "nosniff")
