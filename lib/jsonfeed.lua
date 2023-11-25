@@ -25,7 +25,7 @@ local function generateItems(records, profileData, renderItemText)
         local authors = {}
         for _, author in ipairs(itemAuthors) do
             table.insert(authors, {
-                name = author.displayName,
+                name = author.displayName .. " (" .. author.handle .. ")",
                 url = Bsky.uri.profile.fromDid(author.did),
                 avatar = author.avatar
             })
