@@ -14,10 +14,19 @@ local function mapLinkFacet(item, facet, feature, result)
     table.insert(result, link)
 end
 
+local function mapHashtagFacet(item, facet, feature, result)
+    -- TODO: figure out what URL these are supposed to go to
+    local link = Xml.tag(
+        "a", false,
+        Xml.text(string.sub(item.value.text, facet.index.byteStart + 1, facet.index.byteEnd))
+    )
+    table.insert(result, link)
+end
+
 local facetMap = {
     ["app.bsky.richtext.facet#link"] = mapLinkFacet,
-    ["app.bsky.richtext.facet#mention"] = mapMentionFacet
-    -- ["app.bsky.richtext.facet#tag"] = mapHashtagFacet -- Not sure what URL to map these to
+    ["app.bsky.richtext.facet#mention"] = mapMentionFacet,
+    ["app.bsky.richtext.facet#tag"] = mapHashtagFacet,
 }
 
 local function mapExternalEmbed(_, embed, result)
@@ -490,11 +499,13 @@ local function handle(user, feedType)
         postTable.records = postsWithoutReplies
     else
         if not prefetchSpecialPosts(postTable.records) then
+            Log(kLogWarn, "Failed to prefetch posts")
             return
         end
     end
     local profileData = getProfile(user)
     if not profileData then
+        Log(kLogWarn, "Failed to fetch profile information for " .. user)
         return
     end
 
@@ -503,7 +514,7 @@ local function handle(user, feedType)
         SetHeader("x-content-type-options", "nosniff")
         Write(Rss.render(postTable.records, profileData, renderItemText))
     elseif feedType == "jsonfeed" then
-        -- SetHeader("Content-Type", "application/feed+json")
+        SetHeader("Content-Type", "application/feed+json")
         Write(Jsonfeed.render(postTable.records, profileData, renderItemText))
     end
 end
