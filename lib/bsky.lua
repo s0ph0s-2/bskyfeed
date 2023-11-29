@@ -1,5 +1,7 @@
 --- Bluesky/ATProto API wrapper layer
 
+--- @alias HttpHeaders {[string]: string}
+
 --- Assemble a URI from a protocol, host, path, and params.
 --- Username/password and fragments are not supported.
 --- @param protocol string The protocol to use for the URI (typically https)
@@ -56,7 +58,7 @@ end
 
 --- Stochastically raise errors as the Bluesky rate limit is neared.
 --- The hope is that this is enough back-pressure to avoid exceeding the limit.
---- @param headers (table) The response headers from a Bluesky API request.
+--- @param headers (HttpHeaders) The response headers from a Bluesky API request.
 --- @return (boolean) True if the request is OK, false if a rate limit is near.
 local function errOnRateLimit(headers)
     if not headers then
@@ -72,7 +74,10 @@ local function errOnRateLimit(headers)
     end
     local later = "a few minutes"
     if headers["RateLimit-Reset"] then
-        later = FormatHttpDateTime(headers["RateLimit-Reset"])
+        local rlreset = tonumber(headers["RateLimit-Reset"])
+        if rlreset then
+            later = FormatHttpDateTime(rlreset)
+        end
     end
     local percentLeft = remaining / limit
     local random = string.byte(GetRandomBytes(1))
@@ -109,15 +114,12 @@ end
 --- Make an HTTP request to the Bluesky API and decode the response JSON.
 --- @param http_method string The HTTP method to use for the request (probably GET)
 --- @param xrpc_method string The XRPC method to call in the Bluesky API.
---- @param params table|nil The parameters to encode in the request URI.
---- @param headers table|nil Headers to include in the request.
---- @param body string|nil A body to include in the request.
---- @return number The HTTP status code of the response, or -1 for invalid JSON.
---- @return table|string If the request failed or the response was invalid, a
----         string describing the error.  If it succeeded, a table of the headers.
---- @return table|nil If the request failed or the response was invalid, nil.
----         If it succeeded, a table containing the JSON-decoded response from
----         the Bluesky API.
+--- @param params (table?) The parameters to encode in the request URI.
+--- @param headers (HttpHeaders?) Headers to include in the request.
+--- @param body (string?) A body to include in the request.
+--- @return (number?) status The HTTP status code of the response, or -1 for invalid JSON.
+--- @return (table|string) bodyOrErr If the request failed or the response was invalid, a string describing the error.  If it succeeded, a table of the headers.
+--- @return (string?) resultBody If the request failed or the response was invalid, nil. If it succeeded, a string containing the response from the Bluesky API.
 local function request(http_method, xrpc_method, params, headers, body)
     assert(
         type(http_method) == "string",
@@ -145,6 +147,9 @@ local function request(http_method, xrpc_method, params, headers, body)
         body = body,
         headers = headers
     })
+    if type(resp_headers) == "string" then
+        return nil, resp_headers, nil
+    end
     if not errOnRateLimit(resp_headers) then
         return 0, "rate limit exceeded", nil
     end
@@ -155,12 +160,9 @@ end
 --- @param method string The XRPC method to call in the Bluesky API.
 --- @param params table|nil The parameters to encode in the request URI.
 --- @param headers table|nil Headers to include in the request.
---- @return number The HTTP status code of the response, or -1 for invalid JSON.
---- @return table|string If the request failed or the response was invalid, a
----         string describing the error.  If it succeeded, a table of the headers.
---- @return table|nil If the request failed or the response was invalid, nil.
----         If it succeeded, a table containing the JSON-decoded response from
----         the Bluesky API.
+--- @return (number?) status The HTTP status code of the response, or -1 for invalid JSON.
+--- @return (table|string) headersOrErr If the request failed or the response was invalid, a string describing the error.  If it succeeded, a table of the headers.
+--- @return (string?) resultBody If the request failed or the response was invalid, nil. If it succeeded, a string containing the response from the Bluesky API.
 local function get(method, params, headers)
     -- GET doesn't allow bodies.
     return request("GET", method, params, headers)
@@ -183,6 +185,9 @@ local function getJsonOrErr(method, params, headers)
     local status, resp_headers, resp_body = Fetch(uri, {
         headers = headers
     })
+    if type(resp_headers) == "string" or not resp_body then
+        return nil, resp_headers, nil
+    end
     if not errOnRateLimit(resp_headers) then
         return nil
     end
@@ -264,12 +269,11 @@ end
 --- Create an HTTP URI for an in-feed image.
 --- @param post_atproto_uri (string) The at:// URI for a post.
 --- @param image_id (string) The "$link" ID for an image (not cid).
---- @param content_type (string) The Content-Type (MIME type) for the image.
 --- @return (string | nil) A string with unspecified data if the URL could be
 ---         created, nil otherwise.
 --- @return (string) The desired HTTP image url if the URL could be created,
 ---         unspecified string data otherwise.
-local function makeFeedImageHttpUri(post_atproto_uri, image_id, content_type)
+local function makeFeedImageHttpUri(post_atproto_uri, image_id)
     local m, did, _, _ = AT_URI:search(post_atproto_uri) -- luacheck: ignore
     if m then
         -- local _, format = split(content_type, "/")

@@ -72,8 +72,7 @@ local function mapImagesEmbed(item, embed, result)
     for _, image in ipairs(embed.images) do
         local ok, src = Bsky.uri.image.feedHttp(
             itemBaseUri,
-            image.image.ref["$link"],
-            image.image.mimeType
+            image.image.ref["$link"]
         )
         if ok then
             local attrs = {
@@ -460,11 +459,13 @@ local function prefetchReposts(records)
                 Log(kLogVerbose, "Repost fetch error: " .. repostData)
             else
                 local originalType = item.value["$type"]
+                local originallyCreatedAt = item.value.createdAt
                 for key, value in pairs(repostData.value) do
                     item.value[key] = value
                 end
                 item.value["$type"] = originalType
                 item.authorProfile = repostData.authorProfile
+                item.value.createdAt = originallyCreatedAt
             end
         end
     end
@@ -552,19 +553,6 @@ local function handle(user, feedType)
     elseif feedType == "jsonfeed" then
         SetHeader("Content-Type", "application/feed+json")
         Write(Jsonfeed.render(postTable.records, profileData, renderItemText))
-    end
-end
-
-local function returnError(err)
-    if type(err) == "table" then
-        SetStatus(err.status, err.status_msg)
-        for header, value in pairs(err.headers) do
-            SetHeader(header, value)
-        end
-        Write(err.body)
-    else
-        SetStatus(500)
-        Write(err)
     end
 end
 

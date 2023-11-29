@@ -67,7 +67,7 @@ local function render(records, profileData, renderItemText)
         } },
         items = generateItems(records, profileData, renderItemText)
     }
-    return EncodeJson(feed)
+    return assert(EncodeJson(feed))
 end
 
 return { render = render }
