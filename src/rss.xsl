@@ -141,6 +141,10 @@ This file is in BETA. Please test and contribute to the discussion:
               <xsl:value-of select="description" disable-output-escaping="yes"/>
             </div>
           </xsl:for-each>
+          <footer>
+            <a href="https://github.com/s0ph0s-2/bskyfeed">Source Code</a> • Made by
+            <a href="https://s0ph0s.dog/">s0ph0s</a>
+          </footer>
         </div>
       </body>
     </html>

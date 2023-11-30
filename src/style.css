@@ -63,11 +63,18 @@ hr {
   padding-bottom: 0.25em;
   border-bottom: 1px solid gray;
 }
-.post:last-child {
+.post:nth-last-child(2) {
   border-bottom: 0;
 }
 .post h3 {
   margin-bottom: 0.5em;
+}
+footer {
+  font-size: 0.8rem;
+  margin-top: 1rem;
+  color: gray;
+  padding-top: 0.5rem;
+  border-top: 1px solid gray;
 }
 @media (prefers-color-scheme: dark) {
   html,
