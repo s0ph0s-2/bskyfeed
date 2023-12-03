@@ -1,39 +1,39 @@
 local luaunit = require "luaunit"
-local xml = require "xml"
-local rss = require "rss"
+Xml = require "xml"
+Rss = require "rss"
 
 TestXml = {}
 
     function TestXml:testXmlEscapeAttrEscapesAllThreeBannedChars()
-        luaunit.assertEquals(xml.escapeAttr("&"), "&amp;")
-        luaunit.assertEquals(xml.escapeAttr("'"), "&#39;")
-        luaunit.assertEquals(xml.escapeAttr('"'), "&quot;")
+        luaunit.assertEquals(Xml.escapeAttr("&"), "&amp;")
+        luaunit.assertEquals(Xml.escapeAttr("'"), "&#39;")
+        luaunit.assertEquals(Xml.escapeAttr('"'), "&quot;")
     end
 
     function TestXml:testXmlEscapeAttrEscapesGnollAndVoid()
-        luaunit.assertEquals(xml.escapeAttr("Gnoll&Void🍖💦"), "Gnoll&amp;Void🍖💦")
+        luaunit.assertEquals(Xml.escapeAttr("Gnoll&Void🍖💦"), "Gnoll&amp;Void🍖💦")
     end
 
     function TestXml:testXmlCdataEmptyStr()
-        luaunit.assertEquals(xml.cdata(""), "<![CDATA[]]>")
+        luaunit.assertEquals(Xml.cdata(""), "<![CDATA[]]>")
     end
 
     function TestXml:testXmlCdataGnollAndVoid()
-        luaunit.assertEquals(xml.cdata("Gnoll&Void🍖💦"), "<![CDATA[Gnoll&Void🍖💦]]>")
+        luaunit.assertEquals(Xml.cdata("Gnoll&Void🍖💦"), "<![CDATA[Gnoll&Void🍖💦]]>")
     end
 
     function TestXml:testXmlCdataClosingSequenceInInput()
         luaunit.assertEquals(
-            xml.cdata("You can't have ']]>' in a CDATA block."),
+            Xml.cdata("You can't have ']]>' in a CDATA block."),
             "<![CDATA[You can't have ']]]]><![CDATA[>' in a CDATA block.]]>"
         )
     end
 
     function TestXml:testXmlTagCommonTags()
-        luaunit.assertEquals(xml.tag("hr", true), "<hr/>")
-        luaunit.assertEquals(xml.tag("b", false), "<b></b>")
+        luaunit.assertEquals(Xml.tag("hr", true), "<hr/>")
+        luaunit.assertEquals(Xml.tag("b", false), "<b></b>")
         luaunit.assertEquals(
-            xml.tag("link", true, { rel = "icon" }),
+            Xml.tag("link", true, { rel = "icon" }),
             "<link rel='icon'/>"
         )
     end
@@ -41,28 +41,28 @@ TestXml = {}
     function TestXml:testXmlTagNoChildrenWhenSelfClosing()
         luaunit.assertErrorMsgContains(
             "cannot have children",
-            xml.tag, "hr", true, "child"
+            Xml.tag, "hr", true, "child"
         )
     end
 
     function TestXml:testXmlTagNoWhitespace()
         luaunit.assertErrorMsgContains(
             "whitespace",
-            xml.tag, "xslt value-of", true
+            Xml.tag, "xslt value-of", true
         )
     end
 
     function TestXml:testXmlTagAttrsOrFirstChildBecomesFirstChild()
         luaunit.assertEquals(
-            xml.tag("strong", false, "that's a bold move cotton"),
+            Xml.tag("strong", false, "that's a bold move cotton"),
             "<strong>that's a bold move cotton</strong>"
         )
     end
 
     function TestXml:testXmlTagSimpleAttrsOrderedDeterministically()
-        local ex1 = xml.tag("link", true, { target = "_blank", href = "https://example.com/"})
-        local ex2 = xml.tag("link", true, { href = "https://example.com/", target = "_blank"})
-        local ex3 = xml.tag("link", true, { target = "_blank", href = "https://example.com/"})
+        local ex1 = Xml.tag("link", true, { target = "_blank", href = "https://example.com/"})
+        local ex2 = Xml.tag("link", true, { href = "https://example.com/", target = "_blank"})
+        local ex3 = Xml.tag("link", true, { target = "_blank", href = "https://example.com/"})
 
         luaunit.assertEquals(ex1, ex2)
         luaunit.assertEquals(ex2, ex3)
@@ -70,15 +70,15 @@ TestXml = {}
     end
 
     function TestXml:testXmlTagNamespacedAttrsOrderedDeterministically()
-        local ex1 = xml.tag("rss", true, {
+        local ex1 = Xml.tag("rss", true, {
             ["xmlns:atom"] = "http://www.w3.org/2005/Atom",
             ["xmlns:dc"] = "http://purl.org/dc/elements/1.1/"
         })
-        local ex2 = xml.tag("rss", true, {
+        local ex2 = Xml.tag("rss", true, {
             ["xmlns:dc"] = "http://purl.org/dc/elements/1.1/",
             ["xmlns:atom"] = "http://www.w3.org/2005/Atom"
         })
-        local ex3 = xml.tag("rss", true, {
+        local ex3 = Xml.tag("rss", true, {
             ["xmlns:atom"] = "http://www.w3.org/2005/Atom",
             ["xmlns:dc"] = "http://purl.org/dc/elements/1.1/"
         })
@@ -89,17 +89,17 @@ TestXml = {}
     end
 
     function TestXml:testXmlTagMixedAttrsOrderedDeterministically()
-        local ex1 = xml.tag("rss", true, {
+        local ex1 = Xml.tag("rss", true, {
             ["xmlns:atom"] = "http://www.w3.org/2005/Atom",
             version = "2.0",
             ["xmlns:dc"] = "http://purl.org/dc/elements/1.1/"
         })
-        local ex2 = xml.tag("rss", true, {
+        local ex2 = Xml.tag("rss", true, {
             ["xmlns:atom"] = "http://www.w3.org/2005/Atom",
             ["xmlns:dc"] = "http://purl.org/dc/elements/1.1/",
             version = "2.0"
         })
-        local ex3 = xml.tag("rss", true, {
+        local ex3 = Xml.tag("rss", true, {
             version = "2.0",
             ["xmlns:atom"] = "http://www.w3.org/2005/Atom",
             ["xmlns:dc"] = "http://purl.org/dc/elements/1.1/"
@@ -178,7 +178,7 @@ function TestRss:testRssGeneratesFeedWithNoPosts()
     local title = profile.displayName .. " (Bluesky)"
     local rendererNotCalled = true
     local renderer = function () rendererNotCalled = false end
-    local result = rss.render({}, profile, renderer)
+    local result = Rss.render({}, profile, renderer)
 
     luaunit.assertIsTrue(rendererNotCalled)
     assertEqualsLongStr(

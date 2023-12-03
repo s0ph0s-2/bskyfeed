@@ -128,6 +128,22 @@ local function generateAuthorBlock(author)
     )
 end
 
+--- Generate a header (HTML) for a post, used in replies and embeds.
+--- @param author (Profile) Whoever wrote the post
+--- @param date (string) When the post was written (RFC 3339 format)
+--- @param url (string) A URL to view the post in a web browser
+--- @return (string) HTML that introduces a post.
+local function postHeader(author, date, url)
+    local author = generateAuthorBlock(author)
+    local dateRfc1123 = Date(date):fmt("${rfc1123}")
+    local timeLink = Xml.tag(
+        "small", false, Xml.tag(
+            "a", false, { href = url }, Xml.text("Posted: " .. dateRfc1123)
+        )
+    )
+    return author .. Xml.tag("br", true) .. timeLink
+end
+
 local function reprocessNewlines(textContent)
     -- TODO: I observed this inserting <br> into an alt="" once, this should probably be done differently.
     local paragraphs = string.gsub(textContent, "\n\n", "</p><p>")
@@ -199,9 +215,13 @@ local function renderItemText(item, profileData, itemUri)
             end
         else
             local quoteText, quoteAuthors = renderItemText(reply.parent, reply.parent.authorProfile, itemUri)
+            local quoteUrl = Bsky.uri.post.toHttp(reply.parent.uri)
+            if not quoteUrl then
+                quoteUrl = reply.parent.uri
+            end
             local quote = Xml.tag(
                 "blockquote", false,
-                generateAuthorBlock(reply.parent.authorProfile),
+                postHeader(reply.parent.authorProfile, reply.parent.value.createdAt, quoteUrl),
                 quoteText
             )
             table.insert(result, quote)
@@ -277,7 +297,7 @@ local function mapRecordEmbed(_, embed, result, authors)
         table.insert(authors, author)
     end
     table.insert(result, Xml.tag(
-        "blockquote", false, generateAuthorBlock(embedAuthor), embeddedPost
+        "blockquote", false, postHeader(embedAuthor, embedPost.value.createdAt, embedUri), embeddedPost
     ))
 end
 
