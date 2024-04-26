@@ -269,10 +269,8 @@ end
 --- Create an HTTP URI for an in-feed image.
 --- @param post_atproto_uri (string) The at:// URI for a post.
 --- @param image_id (string) The "$link" ID for an image (not cid).
---- @return (string | nil) A string with unspecified data if the URL could be
----         created, nil otherwise.
---- @return (string) The desired HTTP image url if the URL could be created,
----         unspecified string data otherwise.
+--- @return (string | nil) # A string with unspecified data if the URL could be created, nil otherwise.
+--- @return (string) # The desired HTTP image url if the URL could be created, unspecified string data otherwise.
 local function makeFeedImageHttpUri(post_atproto_uri, image_id)
     local m, did, _, _ = AT_URI:search(post_atproto_uri) -- luacheck: ignore
     if m then
