@@ -215,8 +215,8 @@ local function renderItemText(item, profileData, itemUri)
             end
         else
             local quoteText, quoteAuthors = renderItemText(reply.parent, reply.parent.authorProfile, itemUri)
-            local quoteUrl = Bsky.uri.post.toHttp(reply.parent.uri)
-            if not quoteUrl then
+            local ok, quoteUrl = Bsky.uri.post.toHttp(reply.parent.uri)
+            if not ok then
                 quoteUrl = reply.parent.uri
             end
             local quote = Xml.tag(
@@ -483,6 +483,7 @@ local function prefetchReposts(records)
                 for key, value in pairs(repostData.value) do
                     item.value[key] = value
                 end
+                item.uri = repost.uri
                 item.value["$type"] = originalType
                 item.authorProfile = repostData.authorProfile
                 item.value.createdAt = originallyCreatedAt
