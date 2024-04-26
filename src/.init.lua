@@ -22,11 +22,11 @@ local heartbeatCounter = 0
 
 function SetupDb()
     if not unix.access(DB_FILE, unix.F_OK) then
-        Db = sqlite3.open(DB_FILE)
-        Db:busy_timeout(1000)
-        Db:exec[[PRAGMA journal_mode=WAL]]
-        Db:exec[[PRAGMA synchronous=NORMAL]]
-        Db:exec[[CREATE TABLE ProfileCache (
+        local db = sqlite3.open(DB_FILE)
+        db:busy_timeout(1000)
+        db:exec[[PRAGMA journal_mode=WAL]]
+        db:exec[[PRAGMA synchronous=NORMAL]]
+        db:exec[[CREATE TABLE ProfileCache (
             did TEXT PRIMARY KEY,
             handle TEXT,
             displayName TEXT,
@@ -34,13 +34,12 @@ function SetupDb()
             avatar TEXT,
             cachedAt TEXT
         );]]
-        Db:exec[[CREATE TABLE PostCache (
+        db:exec[[CREATE TABLE PostCache (
             uri TEXT PRIMARY KEY,
             postBlob BLOB,
             cachedAt TEXT
         );]]
-        Db:close()
-        Db = nil
+        db:close()
     end
 end
 
@@ -187,9 +186,14 @@ end
 function OnWorkerStart()
    setupSql()
    -- This fails with EINVAL
+   -- print(unix.getrlimit(unix.RLIMIT_AS))
+   -- print(unix.getrlimit(unix.RLIMIT_RSS))
+   -- print(unix.getrlimit(unix.RLIMIT_CPU))
+   -- print(unix.getrusage())
+   unix.setrlimit(unix.RLIMIT_AS, 400 * 1024 * 1024)
    -- assert(unix.setrlimit(unix.RLIMIT_RSS, 100 * 1024 * 1024))
 
-   assert(unix.setrlimit(unix.RLIMIT_CPU, 4))
+   unix.setrlimit(unix.RLIMIT_CPU, 4)
    assert(unix.unveil(nil, nil))
    -- assert(unix.pledge("stdio inet dns"))
 end
