@@ -193,7 +193,10 @@ function OnWorkerStart()
    unix.setrlimit(unix.RLIMIT_AS, 400 * 1024 * 1024)
    -- assert(unix.setrlimit(unix.RLIMIT_RSS, 100 * 1024 * 1024))
 
-   unix.setrlimit(unix.RLIMIT_CPU, 4)
+   unix.setrlimit(unix.RLIMIT_CPU, 2)
+   assert(unix.unveil("/tmp", "rwc"))
+   assert(unix.unveil("/var/tmp", "rwc"))
+   assert(unix.unveil("/etc", "r"))
    assert(unix.unveil(nil, nil))
    -- assert(unix.pledge("stdio inet dns"))
 end

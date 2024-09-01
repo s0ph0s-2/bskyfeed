@@ -1,5 +1,5 @@
 VERSION := 0.5
-REDBEAN_VERSION := 2.3
+REDBEAN_VERSION := 3.0beta
 REDBEAN := redbean-$(REDBEAN_VERSION).com
 OUTPUT := bskyfeed.com
 ABOUT_FILE := lib/about.lua
