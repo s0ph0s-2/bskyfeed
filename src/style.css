@@ -1,3 +1,6 @@
+:root {
+  color-scheme: light dark;
+}
 * {
   box-sizing: border-box;
 }
@@ -16,6 +19,14 @@ form > * div {
 form > * div:first-child {
   margin-left: 0;
   margin-right: 0.25em;
+}
+@media (max-width: 639px) {
+  input,
+  button,
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 .help-text {
   font-size: 0.8rem;
@@ -48,6 +59,13 @@ form > * div:first-child {
   max-width: 100%;
   height: auto;
 }
+.vbox {
+  flex-direction: column;
+}
+.vbox > * {
+  display: block;
+  margin-bottom: 0.5em;
+}
 header {
   margin-bottom: 2.5em;
 }
@@ -75,21 +93,4 @@ footer {
   color: gray;
   padding-top: 0.5rem;
   border-top: 1px solid gray;
-}
-@media (prefers-color-scheme: dark) {
-  html,
-  body {
-    color: #eee;
-    background-color: #000;
-  }
-  a {
-    color: #7af;
-    text-decoration: none;
-  }
-  a:active {
-    color: red;
-  }
-  a:visited {
-    color: #d7f;
-  }
 }

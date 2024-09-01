@@ -10,8 +10,8 @@
     <h1>Bluesky Feed</h1>
     <p>Make RSS feeds for Bluesky users' posts.</p>
     <form action="/generate.lua" method="POST">
-      <label>
-        <div>Bluesky DID or handle:</div>
+      <label class="vbox">
+        Bluesky DID or handle:
         <input
           type="text"
           name="identifier"
@@ -19,7 +19,7 @@
           required
         />
       </label>
-      <label style="display: flex">
+      <label>
         <input type="checkbox" name="no_replies" />
         <div>
           Exclude reply posts?
