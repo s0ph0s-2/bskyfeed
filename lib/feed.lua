@@ -323,7 +323,7 @@ local function getProfile(user)
             return cachedProfile
         end
     end
-    local ok, profileData = pcall(Bsky.xrpc.getJsonOrErr, "com.atproto.repo.listRecords", {
+    local profileData, err = Bsky.xrpc.getJsonOrErr("com.atproto.repo.listRecords", {
         repo = user,
         limit = 1,
         collection = "app.bsky.actor.profile"
@@ -336,7 +336,8 @@ local function getProfile(user)
         did = user
     }
 
-    if not ok or not profileData then
+    if not profileData then
+        Log(kLogWarn, "Unable to fetch user profile: %s" % {err})
         return unknownUser
     end
     if #profileData.records ~= 1 then
@@ -345,6 +346,10 @@ local function getProfile(user)
     local p = profileData.records[1]
     local handle, did = Bsky.user.getHandleAndDid(user)
     if not handle or not did then
+        return unknownUser
+    end
+    if not p then
+        Log(kLogWarn, "No records in profileData response")
         return unknownUser
     end
     if not p.value.avatar then
@@ -381,11 +386,12 @@ local function fetchPost(uri)
     if not ok then
         return false, "(Invalid post URI)"
     end
-    local ok2, postData = pcall(Bsky.xrpc.getJsonOrErr, method, params)
-    if not ok2 then
+    local postData, postErr = Bsky.xrpc.getJsonOrErr(method, params)
+    if not postData then
+        Log(kLogWarn, "Error fetching post: %s" % {postErr})
         return false, "(This post has been deleted)"
     end
-    if postData == nil then
+    if not postData then
         return false, "(Invalid response from Bluesky)"
     end
     local ok3, postProfileDid = Bsky.did.fromUri(postData.uri)
@@ -497,27 +503,18 @@ local function handle(user, feedType)
     local noReplies = HasParam("no_replies")
     local yesReposts = HasParam("yes_reposts")
     if feedType ~= "rss" and feedType ~= "jsonfeed" then
-        error({
-            status = 400,
-            status_msg = "Bad Request",
-            headers = {},
-            body = "Feed type must be 'rss' or 'jsonfeed', not " .. feedType
-        })
+        ServeError(400,  "Feed type must be 'rss' or 'jsonfeed', not " .. feedType)
         return
     end
-    local postTable = Bsky.xrpc.getJsonOrErr("com.atproto.repo.listRecords",
+    local postTable, err = Bsky.xrpc.getJsonOrErr("com.atproto.repo.listRecords",
     {
         repo = user,
         collection = "app.bsky.feed.post",
         limit = 20
     })
     if not postTable then
-        error({
-            status = 500,
-            status_msg = "Internal Server Error",
-            headers = {},
-            body = "No response from Bluesky"
-        })
+        Log(kLogWarn, "%s" % {err})
+        ServeError(500, "No response from Bluesky")
         return
     end
     -- Reposts are fetched separately (sadly). If the user asked for
@@ -525,7 +522,7 @@ local function handle(user, feedType)
     -- regular posts.
     if yesReposts then
         -- print("Fetching reposts...")
-        local repostTable = Bsky.xrpc.getJsonOrErr(
+        local repostTable, repostErr = Bsky.xrpc.getJsonOrErr(
             "com.atproto.repo.listRecords",
             {
                 repo = user,
@@ -544,6 +541,8 @@ local function handle(user, feedType)
                 return a.value.createdAt > b.value.createdAt
             end
             table.sort(postTable.records, cmp)
+        else
+            Log(kLogWarn, "Error fetching reposts: %s" % {repostErr})
         end
     end
 

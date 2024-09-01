@@ -186,36 +186,20 @@ local function getJsonOrErr(method, params, headers)
         headers = headers
     })
     if type(resp_headers) == "string" or not resp_body then
-        return nil, resp_headers, nil
+        return nil, resp_headers
     end
     if not errOnRateLimit(resp_headers) then
-        return nil
+        return nil, "rate limit exceeded"
     end
     if status == 200 then
         local bodyObj, error = DecodeJson(resp_body)
         if not bodyObj then
-            error({
-                status = 502,
-                status_msg = error,
-                headers = {
-                    ["X-Bsky-Uri"] = uri
-                },
-                body = resp_body
-            })
-            return nil
+            return nil, error
         else
             return bodyObj
         end
     else
-        error({
-            status = status,
-            status_msg = nil,
-            headers = {
-                ["X-Bsky-Uri"] = uri
-            },
-            body = resp_body or resp_headers
-        })
-        return nil
+        return nil, resp_body or resp_headers
     end
 end
 
