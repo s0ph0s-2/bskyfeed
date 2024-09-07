@@ -11,12 +11,14 @@ AT_URI = re.compile[[^at://(did:[a-z0-9:]+)/app\.bsky\.feed\.(re)?post/([a-z0-9]
 FEED_PATH = re.compile[[^/([A-z0-9:\.]+)/feed\.(json|xml)$]]
 DB_FILE = 'bskyfeedCache.sqlite3'
 
-User_Agent = string.format(
+ServerVersion = string.format(
     "%s/%s; redbean/%s",
     about.NAME,
     about.VERSION,
     about.REDBEAN_VERSION
 )
+ProgramBrand(ServerVersion)
+ProgramCache(60 * 60 * 24 * 365, "private")
 
 local heartbeatCounter = 0
 

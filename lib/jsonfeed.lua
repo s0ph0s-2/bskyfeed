@@ -16,6 +16,8 @@
 --- @return JsonFeedItem[] The items for the feed.
 local function generateItems(records, profileData, renderItemText)
     local items = {}
+    -- Hint to EncodeJson that this should be serialized as an array, even if there's nothing in it.
+    items[0] = false
     for _, record in pairs(records) do
         local ok, uri = Bsky.uri.post.toHttp(record.uri)
         if not ok then
