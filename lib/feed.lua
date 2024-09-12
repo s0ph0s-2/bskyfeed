@@ -102,10 +102,72 @@ local function mapImagesEmbed(item, embed, result)
     table.insert(result, "</div>")
 end
 
+local function mapVideoEmbed(item, embed, result)
+    if not embed or not embed.video then
+        Log(kLogWarn, "No video field in video embed? Item: " .. EncodeJson(item))
+        return
+    end
+    table.insert(result, Xml.tag("hr", true))
+    -- Reposts need to fetch images based on the ID of the post that has been
+    -- reposted, not based on the ID of the pointer post.
+    local itemBaseUri = item.uri
+    if item.value.subject and item.value.subject.uri then
+        itemBaseUri = item.value.subject.uri
+    end
+    local video = embed.video
+    local ok, src = Bsky.uri.image.blobHttp(
+        itemBaseUri,
+        video.ref["$link"]
+    )
+    local p_ok, poster = Bsky.uri.image.videoThumbnail(
+        itemBaseUri,
+        video.ref["$link"]
+    )
+    if ok and p_ok then
+        local attrs = {
+                alt = video.alt,
+                src = src,
+                poster = poster,
+                loop = "true",
+                controls = "true",
+        }
+        if embed.aspectRatio then
+            attrs.width = embed.aspectRatio.width
+            attrs.height = embed.aspectRatio.height
+        end
+        local videoTag = Xml.tag(
+            "video",
+            false,
+            attrs,
+            Xml.tag(
+                "a",
+                false,
+                {
+                    href = src
+                },
+                Xml.text("Download MP4 video file")
+            )
+        )
+        table.insert(result, videoTag)
+    else
+        table.insert(result, Xml.tag(
+            "p", false,
+            Xml.text(
+                "Broken video: Post("
+                .. item.uri
+                .. "); Image("
+                .. video.ref["$link"]
+                .. ")"
+            )
+        ))
+    end
+end
+
 local embedMap = {
     ["app.bsky.embed.external"] = mapExternalEmbed,
     -- See below for mapRecordEmbed
-    ["app.bsky.embed.images"] = mapImagesEmbed
+    ["app.bsky.embed.images"] = mapImagesEmbed,
+    ["app.bsky.embed.video"] = mapVideoEmbed,
 }
 
 --- Generate an HTML author block for embeds or replies.

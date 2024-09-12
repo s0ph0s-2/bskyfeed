@@ -270,6 +270,45 @@ local function makeFeedImageHttpUri(post_atproto_uri, image_id)
     end
 end
 
+--- Create an HTTP URI for a blob.
+--- @param post_atproto_uri (string) The at:// URI for a post.
+--- @param blob_link (string) The "$link" ID for the blob (not cid).
+--- @return (string | nil) # A string with unspecified data if the URL could be created, nil otherwise.
+--- @return (string) # The desired HTTP blob url if the URL could be created, unspecified string data otherwise.
+local function makeBlobHttpUri(post_atproto_uri, blob_link)
+    local m, did, _, _ = AT_URI:search(post_atproto_uri) -- luacheck: ignore
+    if m then
+        -- local _, format = split(content_type, "/")
+        return m, assembleXrpcUri("com.atproto.sync.getBlob", {
+            did = did,
+            cid = blob_link,
+        })
+    else
+        return nil, did
+    end
+end
+
+--- Create an HTTP URI for an in-feed video.
+--- @param post_atproto_uri (string) The at:// URI for a post.
+--- @param media_id (string) The "$link" ID for a video.
+--- @return (string?) # A string with unspecified data if the URL could not be created, nil otherwise.
+--- @return (string) # The desired HTTP image URL if the URL could be created, unspecified string data otherwise.
+local function makeVideoThumbnailHttpUri(post_atproto_uri, media_id)
+    local m, did, _, _ = AT_URI:search(post_atproto_uri) -- luacheck: ignore
+    if m then
+        return m, EncodeUrl {
+            scheme = "https",
+            host = "video.bsky.app",
+            path = "/watch/%s/%s/thumbnail.jpg"
+                % {
+                    did,
+                    media_id,
+                },
+        }
+    end
+    return nil, did
+end
+
 --- Create an HTTP URI for a user profile image.
 --- @param did (string) The DID for a user.
 --- @param image_id (string) The "$link" ID for their profile image (not cid).
@@ -334,7 +373,9 @@ return {
         },
         image = {
             feedHttp = makeFeedImageHttpUri,
-            profileHttp = makeProfileImageHttpUri
+            profileHttp = makeProfileImageHttpUri,
+            videoThumbnail = makeVideoThumbnailHttpUri,
+            blobHttp = makeBlobHttpUri,
         },
         profile = {
             fromDid = makeProfileHttpUriFromDid
