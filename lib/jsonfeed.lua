@@ -18,7 +18,8 @@ local function generateItems(records, profileData, renderItemText)
     local items = {}
     -- Hint to EncodeJson that this should be serialized as an array, even if there's nothing in it.
     items[0] = false
-    for _, record in pairs(records) do
+    for i = 1, #records do
+        local record = records[i]
         local ok, uri = Bsky.uri.post.toHttp(record.uri)
         if not ok then
             uri = record.uri
