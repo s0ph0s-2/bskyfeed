@@ -378,7 +378,7 @@ end
 --- @param user string The DID for a user.
 --- @return Profile The profile data for `user`
 local function getProfile(user)
-    local cachedProfile = GetProfileFromCache(user)
+    local cachedProfile = Cache:getProfile(user)
     if cachedProfile then
         local cacheAge = unix.clock_gettime() - cachedProfile.cachedAt
         if cacheAge < (60 * 60 * 24) then
@@ -431,12 +431,18 @@ local function getProfile(user)
         handle = handle,
         did = did
     }
-    PutProfileIntoCache(justTheGoodParts)
+    Cache:putProfile(
+        justTheGoodParts.did,
+        justTheGoodParts.handle,
+        justTheGoodParts.displayName,
+        justTheGoodParts.description,
+        justTheGoodParts.avatar
+    )
     return justTheGoodParts
 end
 
 local function fetchPost(uri)
-    local cachedPost, cachedAt = GetPostFromCache(uri)
+    local cachedPost, cachedAt = Cache:getPost(uri)
     if cachedPost then
         local cacheAge = unix.clock_gettime() - cachedAt
         if cacheAge < (60 * 60 * 24) then
@@ -465,7 +471,7 @@ local function fetchPost(uri)
         return false, "(The account which posted this has been deleted)"
     end
     postData.authorProfile = postProfile
-    PutPostIntoCache(postData)
+    Cache:putPost(postData.uri, postData)
     return true, postData
 end
 
@@ -561,9 +567,9 @@ local function prefetchReposts(records)
 end
 
 
-local function handle(user, feedType)
-    local noReplies = HasParam("no_replies")
-    local yesReposts = HasParam("yes_reposts")
+local function handle(r, user, feedType)
+    local noReplies = r.params.no_replies ~= nil
+    local yesReposts = r.params.yes_reposts ~= nil
     if feedType ~= "rss" and feedType ~= "jsonfeed" then
         ServeError(400,  "Feed type must be 'rss' or 'jsonfeed', not " .. feedType)
         return
@@ -576,9 +582,10 @@ local function handle(user, feedType)
     })
     if not postTable then
         Log(kLogWarn, "%s" % {err})
-        ServeError(500, "No response from Bluesky")
+        Fm.serveError(500, "No response from Bluesky")
         return
     end
+    -- Cache = DbUtil.Cache:new()
     -- Reposts are fetched separately (sadly). If the user asked for
     -- them, fetch them too and sort them into the same table as the
     -- regular posts.
@@ -629,18 +636,21 @@ local function handle(user, feedType)
 
     Log(kLogDebug, "Full post table data: " .. EncodeJson(postTable))
     if feedType == "rss" then
-        SetHeader("Content-Type", "application/xml; charset=utf-8")
-        SetHeader("x-content-type-options", "nosniff")
-        Write(Rss.render(postTable.records, profileData, renderItemText))
+        r.headers.ContentType = "application/xml; charset=utf-8"
+        r.headers["x-content-type-options"] = "nosniff"
+        return Fm.serveResponse(
+            200,
+            nil,
+            Rss.render(postTable.records, profileData, renderItemText)
+        )
     elseif feedType == "jsonfeed" then
-        SetHeader("Content-Type", "application/feed+json")
-        Write(Jsonfeed.render(postTable.records, profileData, renderItemText))
+        r.headers.ContentType = "application/feed+json"
+        return Fm.serveResponse(
+            200,
+            nil,
+            Jsonfeed.render(postTable.records, profileData, renderItemText)
+        )
     end
 end
-
--- local ok, result = xpcall(handle, debug.traceback)
--- if not ok then
---     returnError(result)
--- end
 
 return { handle = handle }
