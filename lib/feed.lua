@@ -368,7 +368,11 @@ end
 -- dependency.
 embedMap["app.bsky.embed.record"] = mapRecordEmbed
 embedMap["app.bsky.embed.recordWithMedia"] = function (item, embed, result, authors)
-    mapImagesEmbed(item, embed, result)
+    if embed and embed.video then
+        mapVideoEmbed(item, embed, result)
+    else
+        mapImagesEmbed(item, embed, result)
+    end
     mapRecordEmbed(item, embed, result, authors)
 end
 
