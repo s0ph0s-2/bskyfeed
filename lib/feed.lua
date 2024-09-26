@@ -115,7 +115,7 @@ local function mapVideoEmbed(item, embed, result)
         itemBaseUri = item.value.subject.uri
     end
     local video = embed.video
-    local ok, src = Bsky.uri.image.blobHttp(
+    local ok, src = Bsky.uri.image.videoPlaylist(
         itemBaseUri,
         video.ref["$link"]
     )
