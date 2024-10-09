@@ -307,7 +307,7 @@ local function renderItemText(item, profileData, itemUri)
                             nextSegementStartIdx,
                             facet.index.byteStart
                         )
-                        table.insert(result, beforeFacet)
+                        table.insert(result, Xml.text(beforeFacet))
                         facetMapper(item, facet, feature, result)
                         nextSegementStartIdx = facet.index.byteEnd + 1
                     else
@@ -320,7 +320,7 @@ local function renderItemText(item, profileData, itemUri)
         end
     end
     if item.value and item.value.text then
-        table.insert(result, string.sub(item.value.text, nextSegementStartIdx))
+        table.insert(result, Xml.text(string.sub(item.value.text, nextSegementStartIdx)))
     end
     table.insert(result, "</p>")
     -- Embeds
