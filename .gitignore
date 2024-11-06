@@ -6,3 +6,5 @@ lib/about.lua
 .dir
 srv/**
 srv-test/**
+.DS_Store
+/.nova
