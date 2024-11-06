@@ -179,13 +179,17 @@ local function generateAuthorBlock(author)
         host = "bsky.app",
         path = "/profile/" .. author.did
     })
+    local displayNamePreifx = ""
+    if #author.displayName > 0 then
+        displayNamePreifx = Xml.tag(
+            "b",
+            false,
+            Xml.text(author.displayName)
+        ) .. Xml.tag("br", true)
+    end
     return Xml.tag(
         "a", false, { href = authorProfileLink },
-        Xml.tag(
-            "b", false,
-            Xml.text(author.displayName)
-        ),
-        Xml.tag("br", true),
+        displayNamePreifx,
         Xml.text("@" .. author.handle)
     )
 end

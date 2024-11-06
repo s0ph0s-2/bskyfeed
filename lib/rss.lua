@@ -17,7 +17,14 @@ local function generateItems(records, profileData, renderItemText)
         local itemText, itemAuthors = renderItemText(item, profileData, uri)
         local authors = ""
         for _, author in ipairs(itemAuthors) do
-            local authorStr = string.format("%s (%s)", author.displayName, author.handle)
+            local authorStr = author.handle
+            if #author.displayName > 0 then
+                authorStr = string.format(
+                    "%s (%s)",
+                    author.displayName,
+                    author.handle
+                )
+            end
             authors = authors .. Xml.tag(
                 "dc:creator", false, Xml.text(authorStr)
             )
@@ -50,7 +57,8 @@ end
 ---         describing the feed.
 local function render(records, profileData, renderItemText)
     local output = '<?xml version="1.0" encoding="utf-8"?><?xml-stylesheet href="/rss.xsl" type="text/xsl"?>'
-    local titleNode = Xml.text(profileData.displayName .. " (Bluesky)")
+    local profileName = (#profileData.displayName > 0) and profileData.displayName or profileData.handle
+    local titleNode = Xml.text(profileName .. " (Bluesky)")
     local linkNode = Xml.text("https://bsky.app/profile/" .. profileData.did)
     local unixsec = unix.clock_gettime()
     output = output ..
@@ -72,7 +80,7 @@ local function render(records, profileData, renderItemText)
                 ),
                 Xml.tag("title", false, titleNode),
                 Xml.tag("lastBuildDate", false, Xml.text(FormatHttpDateTime(unixsec))),
-                Xml.tag("description", false, Xml.text("Posts on Bluesky by " .. profileData.displayName)),
+                Xml.tag("description", false, Xml.text("Posts on Bluesky by " .. profileName)),
                 Xml.tag("generator", false, Xml.text(User_Agent)),
                 Xml.tag(
                     "image", false,

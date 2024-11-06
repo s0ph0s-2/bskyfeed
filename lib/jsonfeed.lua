@@ -27,8 +27,16 @@ local function generateItems(records, profileData, renderItemText)
         local itemText, itemAuthors = renderItemText(record, profileData, uri)
         local authors = {}
         for _, author in ipairs(itemAuthors) do
+            local authorStr = author.handle
+            if #author.displayName > 0 then
+                authorStr = string.format(
+                    "%s (%s)",
+                    author.displayName,
+                    author.handle
+                )
+            end
             table.insert(authors, {
-                name = author.displayName .. " (" .. author.handle .. ")",
+                name = authorStr,
                 url = Bsky.uri.profile.fromDid(author.did),
                 avatar = author.avatar
             })
@@ -54,17 +62,26 @@ end
 --- @param renderItemText (function) A function which produces a string with HTML text for the feed item.
 --- @return (string) A valid JSON instance containing JSON Feed data describing the feed.
 local function render(records, profileData, renderItemText)
-    local title = profileData.displayName .. " (Bluesky)"
+    local profileName = (#profileData.displayName > 0) and profileData.displayName or profileData.handle
+    local title = profileName .. " (Bluesky)"
     local profileLink = Bsky.uri.profile.fromDid(profileData.did)
+    local authorName = profileData.handle
+    if #profileData.displayName > 0 then
+        authorName = string.format(
+            "%s (%s)",
+            author.displayName,
+            author.handle
+        )
+    end
     local feed = {
         version = "https://jsonfeed.org/version/1.1",
         title = title,
         home_page_url = profileLink,
         feed_url = GetUrl(),
-        description = "Posts on Bluesky by " .. profileData.displayName,
+        description = "Posts on Bluesky by " .. profileName,
         icon = profileData.avatar,
         authors = { {
-            name = profileData.displayName,
+            name = authorName,
             url = profileLink,
             avatar = profileData.avatar,
         } },
