@@ -69,8 +69,8 @@ local function render(records, profileData, renderItemText)
     if #profileData.displayName > 0 then
         authorName = string.format(
             "%s (%s)",
-            author.displayName,
-            author.handle
+            profileData.displayName,
+            profileData.handle
         )
     end
     local feed = {

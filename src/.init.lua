@@ -81,7 +81,7 @@ local function web_setup()
    end)
 
    -- Clean the caches at minute 21 past every 2nd hour.
-   Fm.setSchedule("21 */2 * * *", CleanCaches())
+   Fm.setSchedule("21 */2 * * *", CleanCaches)
 end
 
 web_setup()
