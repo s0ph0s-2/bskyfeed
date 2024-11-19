@@ -21,14 +21,14 @@ local function handle(r)
 
     local did = identifier
     if identifier:sub(1, 4) ~= "did:" then
-        local _, fetchedDid = Bsky.user.getHandleAndDid(identifier)
-        if not fetchedDid then
+        local fetchedDid, didErr = Bsky.resolveHandle(identifier)
+        if not fetchedDid or not fetchedDid.did then
             return Fm.serveError(
                 404,
                 "Not Found",
                 "No user matching %s could be found. Double-check that you got the right data, then try again." % { identifier })
         end
-        did = fetchedDid
+        did = fetchedDid.did
     end
 
     local params = {}

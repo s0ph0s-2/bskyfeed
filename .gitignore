@@ -8,3 +8,4 @@ srv/**
 srv-test/**
 .DS_Store
 /.nova
+/Makefile.secret

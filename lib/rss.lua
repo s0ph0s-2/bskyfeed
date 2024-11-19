@@ -1,26 +1,25 @@
 --- Render the RSS string for the feed items.
--- @param records (table) The table of feed items to render.
--- @param profileData (table) The profile information for the primary post author for this feed.
--- @param renderItemText (function) A function which produces a string with HTML text for the feed item.
--- @return (string) XML of all of the RSS <item>s for the provided records.
+---@param records BskyFeedItem[] The table of feed items to render.
+---@param profileData Profile The profile information for the primary post author for this feed.
+---@param renderItemText function A function which produces a string with HTML text for the feed item.
+---@return string # XML of all of the RSS <item>s for the provided records.
 local function generateItems(records, profileData, renderItemText)
     local items = {}
-    for _, item in pairs(records) do
+    for i = 1, #records do
+        local item = records[i]
+        Log(kLogDebug, "Item: " .. EncodeJson(item))
         if not item then
             return ""
         end
-        local ok, uri = Bsky.uri.post.toHttp(item.uri)
-        if not ok then
-            uri = item.uri
-        end
-        local pubDate = Date(item.value.createdAt):fmt("${rfc1123}")
+        local uri = Bsky.util.atUriToWebUri(item.post.uri)
+        local pubDate = Date(item.post.record.createdAt):fmt("${rfc1123}")
         local itemText, itemAuthors = renderItemText(item, profileData, uri)
         local authors = ""
         for _, author in ipairs(itemAuthors) do
             local authorStr = author.handle
             if #author.displayName > 0 then
                 authorStr = string.format(
-                    "%s (%s)",
+                    "%s @%s",
                     author.displayName,
                     author.handle
                 )

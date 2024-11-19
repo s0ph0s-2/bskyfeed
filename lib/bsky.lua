@@ -52,7 +52,7 @@ local function assembleXrpcUri(xrpc_method, params)
     if type(params) ~= "table" and params ~= nil then
         error("assembleUri: params must be table or nil, not " .. type(params))
     end
-    local result = assembleUri("https", "bsky.social", "/xrpc/" .. xrpc_method, params)
+    local result = assembleUri("https", "public.api.bsky.app", "/xrpc/" .. xrpc_method, params)
     return result
 end
 
@@ -200,22 +200,6 @@ local function getJsonOrErr(method, params, headers)
         end
     else
         return nil, resp_body or resp_headers
-    end
-end
-
---- Convert an at:// post URI to an HTTP URI suitable for web browsers.
---- The result is a URI that a user can view in their browser using the Bluesky
---- frontend.
---- @param at_uri string The ATProto at://(did)/post/(post_id) URI for a post.
---- @return string|nil "ok" if the input was an expected post URI, nil otherwise.
---- @return string An HTTPS URI for that post on the Bluesky website, or garbage
---- otherwise.
-local function atUriToHttpUri(at_uri)
-    local m, did, _, post_id = AT_URI:search(at_uri) -- luacheck: ignore
-    if m then
-        return "ok", string.format("https://bsky.app/profile/%s/post/%s", did, post_id)
-    else
-        return nil, did
     end
 end
 
@@ -372,14 +356,181 @@ local function getHandleAndDid(identifier)
     return repoDescription.handle, repoDescription.did
 end
 
+---@alias BskyError string
+
+---Note that the width and height do not necessarily correspond to any unit.
+---@alias BskyAspectRatio {width: integer, height: integer}
+
+---@class BskyImagesView
+---@field ["$type"] "app.bsky.embed.images#view"
+---@field images {thumb: string, fullsize: string, alt: string, aspectRatio: BskyAspectRatio}[]
+
+---@class BskyVideoView
+---@field ["$type"] "app.bsky.embed.video#view"
+---@field cid string
+---@field playlist string
+---@field thumbnail string?
+---@field alt string?
+
+---@class BskyExternalView
+---@field ["$type"] "app.bsky.embed.external#view"
+---@field external {uri: string, title: string, description: string, thumb: string?}
+
+---@class BskyEmbedRecordView
+---@field ["$type"] "app.bsky.embed.record#viewRecord"
+---@field author BskyAuthor
+---@field cid string
+---@field embeds BskyEmbed[]
+---@field labels BskyLabel[]
+---@field uri string
+---@field value BskyPostRecord
+
+---@class BskyRecordWithMediaView
+---@field ["$type"] "app.bsky.embed.recordWithMedia#view"
+---@field record {record: BskyEmbedRecordView}
+---@field media BskyImagesView|BskyVideoView|BskyExternalView
+
+---@alias BskyEmbed BskyImagesView|BskyVideoView|BskyExternalView|BskyEmbedRecordView|BskyRecordWithMediaView
+
+---@class BskyLabel
+---@field ver integer
+---@field src string DID of the actor which created this label
+---@field uri string AT URI of the record, repository (account), or other resource that this label applies to.
+---@field cid string? CID specifying the specific version of the uri resource that this label applies to.
+---@field val string The short string name of the value or type of this label.
+---@field neg boolean? If true, this is a negation label, which overwrites a previous label.
+---@field cts string Timestamp when this label was created.
+---@field exp string? Timestamp at which this label expires (no longer applies).
+
+---@class BskyAuthor
+---@field did string
+---@field handle string
+---@field displayName string?
+---@field description string?
+---@field avatar string?
+---@field banner string?
+---@field labels BskyLabel[]
+---@field createdAt string
+
+---@class BskyBlockedPost
+---@field ["$type"] "app.bsky.feed.defs.blockedPost"
+---@field blocked boolean
+---@field author {did: string}
+
+---@class BskyNotFoundPost
+---@field ["$type"] "app.bsky.feed.defs.notFoundPost"
+---@field notFound boolean
+
+---@alias BskyRecord BskyPostRecord
+
+---@alias BskyFacetFeature BskyFacetFeatureMention|BskyFacetFeatureTag|BskyFacetFeatureLink
+
+---@class BskyFacetFeatureMention
+---@field ["$type"] "app.bsky.richtext.facet#mention"
+---@field did string
+
+---@class BskyFacetFeatureTag
+---@field ["$type"] "app.bsky.richtext.facet#tag"
+---@field tag string
+
+---@class BskyFacetFeatureLink
+---@field ["$type"] "app.bsky.richtext.facet#link"
+---@field uri string
+
+---@class BskyFacet
+---@field ["$type"] "app.bsky.richtext.facet"
+---@field index {byteEnd: integer, byteStart: integer}
+---@field features BskyFacetFeature[]
+
+---@class BskyPostRecord
+---@field ["$type"] "app.bsky.feed.post"
+---@field createdAt string
+---@field embed table
+---@field facets BskyFacet[]?
+---@field labels table[]
+---@field langs string[]
+---@field text string
+
+---@class BskyPostView
+---@field ["$type"] "app.bsky.feed.defs.postView"
+---@field uri string AT URI
+---@field cid string Post ID
+---@field author BskyAuthor the user who posted this
+---@field record BskyRecord
+---@field embed BskyEmbed
+---@field replyCount integer
+---@field repostCount integer
+---@field likeCount integer
+---@field quoteCount integer
+---@field labels BskyLabel[]
+
+---@class BskyReply
+---@field root BskyPostView|BskyNotFoundPost|BskyBlockedPost
+---@field parent BskyPostView|BskyNotFoundPost|BskyBlockedPost
+
+---@class BskyFeedItem
+---@field post BskyPostView
+---@field reply BskyReply
+---@field reason table
+---@field feedContext string
+
+---@class Bsky
+local Bsky = {}
+
+---@alias getAuthorFeedOptions {limit: integer, cursor: string, filter: string, includePins: boolean}
+---@param actor string An ATProto identifier.
+---@param options getAuthorFeedOptions
+---@return {cursor: string, feed: BskyFeedItem[]}
+---@overload fun(actor: string, options: getAuthorFeedOptions): nil, BskyError
+function Bsky.getAuthorFeed(actor, options)
+    return getJsonOrErr("app.bsky.feed.getAuthorFeed", {
+        actor = actor,
+        limit = options.limit or 20,
+        filter = options.filter or "posts_with_replies",
+    })
+end
+
+---@param handle string AT Identifier
+---@return {did: string}
+---@overload fun(handle: string): nil, BskyError
+function Bsky.resolveHandle(handle)
+    return getJsonOrErr("com.atproto.identity.resolveHandle", {
+        handle = handle,
+    })
+end
+
+---@param actor string AT Identifier
+---@return BskyAuthor
+---@overload fun(actor: string): nil, BskyError
+function Bsky.getProfile(actor)
+    return getJsonOrErr("app.bsky.actor.getProfile", {
+        actor = actor,
+    })
+end
+
+Bsky.util = {}
+
+--- Convert an at:// post URI to the web address of the post, suitable for web browsers. The result is a URI that a user can view in their browser using the Bluesky frontend.
+---@param at_uri string The ATProto at://(did)/post/(post_id) URI for a post.
+---@return string An HTTPS URI for that post on the Bluesky website, or the input if the AT URI was invalid.
+function Bsky.util.atUriToWebUri(at_uri)
+    local m, did, _, post_id = AT_URI:search(at_uri) -- luacheck: ignore
+    if m then
+        return string.format("https://bsky.app/profile/%s/post/%s", did, post_id)
+    else
+        return at_uri
+    end
+end
+
 --- Make an HTTP profile URI from the user's DID.
---- @param did (string) A Bluesky DID (`did:plc:asdfghjkl`).
---- @return (string) The corresponding public bsky.app HTTPS URI for that user.
-local function makeProfileHttpUriFromDid(did)
+--- @param did string A Bluesky DID (`did:plc:asdfghjkl`).
+--- @return string # The corresponding public bsky.app HTTPS URI for that user.
+function Bsky.util.didToProfileHttpUri(did)
     return "https://bsky.app/profile/" .. did
 end
 
-return {
+return Bsky
+--[[return {
     xrpc = {
         get = get,
         getJsonOrErr = getJsonOrErr
@@ -407,4 +558,4 @@ return {
     user = {
         getHandleAndDid = getHandleAndDid
     }
-}
+}]]

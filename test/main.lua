@@ -1,6 +1,7 @@
-local luaunit = require "luaunit"
+local luaunit = require "third_party.luaunit"
 Xml = require "xml"
 Rss = require "rss"
+Feed = require "feed"
 
 TestXml = {}
 
@@ -195,6 +196,80 @@ function TestRss:testRssGeneratesFeedWithNoPosts()
         .. profileUrl
         .. [[</link></image></channel></rss>]]
     )
+end
+
+TestFeed = {}
+
+function TestFeed:testRenderFeedItemTextNoFacets()
+    local tests = {
+        oneLine = { "one", "<p>one</p>" },
+        twoLines = { "l1\nl2", "<p>l1<br/>l2</p>" },
+        twoParas = { "l1\n\nl2", "<p>l1</p><p>l2</p>" },
+        xss = {
+            "<script>alert('pwned');</script>",
+            "<p>&lt;script&gt;alert(&#39;pwned&#39;);&lt;/script&gt;</p>"
+        },
+    }
+    for name, data in pairs(tests) do
+        ---@type BskyPostView
+        local input = {
+            uri = "",
+            cid = "",
+            record = {
+                text = data[1],
+            },
+        }
+        local result = Feed.renderFeedItemText(input)
+        luaunit.assertEquals(result, data[2], "Failed test " .. name)
+    end
+end
+
+---@return BskyFacet
+local function makeFacet(url, bstart, bend)
+    return {
+        features = {
+            {
+                ["$type"] = "app.bsky.richtext.facet#link",
+                uri = url,
+            },
+        },
+        index = {
+            byteStart = bstart,
+            byteEnd = bend,
+        }
+    }
+end
+
+function TestFeed:testRenderFeedItemTextWithFacets()
+    local tests = {
+        justLink = {
+            "apple.com",
+            { makeFacet("https://apple.com", 0, 9), },
+            [[<p><a href='https://apple.com'>apple.com</a></p>]],
+        },
+        linkInTextWithNewline = {
+            "Trying to get outta an art funk come watch\npicarto.tv/BigCozyOrca/",
+            { makeFacet("https://picarto.tv/BigCozyOrca/", 43, 66), },
+            [[<p>Trying to get outta an art funk come watch<br/><a href='https://picarto.tv/BigCozyOrca/'>picarto.tv/BigCozyOrca/</a></p>]],
+        },
+    }
+    for name, data in pairs(tests) do
+        ---@type BskyPostView
+        local input = {
+            uri = "",
+            cid = "",
+            author = {
+                did = "did:plc:abc123",
+                handle = "example.bsky.social",
+            },
+            record = {
+                facets = data[2],
+                text = data[1],
+            },
+        }
+        local result = Feed.renderFeedItemText(input)
+        luaunit.assertEquals(result, data[3], "Failed test " .. name)
+    end
 end
 
 os.exit( luaunit.LuaUnit.run() )

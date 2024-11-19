@@ -10,50 +10,47 @@
 --
 
 --- Render the JSON feed items as an "array" (table).
---- @param records (table) The Bluesky records to turn into a JSON Feed.
+--- @param records BskyFeedItem[] The Bluesky records to turn into a JSON Feed.
 --- @param profileData (Profile) The profile of the user whose feed is being rendered.
 --- @param renderItemText (function) A function which produces a string with HTML text for the feed item.
 --- @return JsonFeedItem[] The items for the feed.
 local function generateItems(records, profileData, renderItemText)
-    local items = {}
+    local jfItems = {}
     -- Hint to EncodeJson that this should be serialized as an array, even if there's nothing in it.
-    items[0] = false
+    jfItems[0] = false
     for i = 1, #records do
-        local record = records[i]
-        local ok, uri = Bsky.uri.post.toHttp(record.uri)
-        if not ok then
-            uri = record.uri
-        end
-        local itemText, itemAuthors = renderItemText(record, profileData, uri)
+        local item = records[i]
+        local uri = Bsky.util.atUriToWebUri(item.post.uri)
+        local itemText, itemAuthors = renderItemText(item, profileData, uri)
         local authors = {}
         for _, author in ipairs(itemAuthors) do
             local authorStr = author.handle
             if #author.displayName > 0 then
                 authorStr = string.format(
-                    "%s (%s)",
+                    "%s @%s",
                     author.displayName,
                     author.handle
                 )
             end
             table.insert(authors, {
                 name = authorStr,
-                url = Bsky.uri.profile.fromDid(author.did),
+                url = Bsky.util.didToProfileHttpUri(author.did),
                 avatar = author.avatar
             })
         end
-        local item = {
+        local jfItem = {
             id = uri,
             url = uri,
             content_html = itemText,
-            date_published = record.value.createdAt,
+            date_published = item.post.record.createdAt,
             authors = authors,
         }
-        if record.value.langs and record.value.langs[0] then
-            item.language = record.value.langs[0]
+        if item.post.record.langs and item.post.record.langs[0] then
+            jfItem.language = item.post.record.langs[0]
         end
-        table.insert(items, item)
+        table.insert(jfItems, jfItem)
     end
-    return items
+    return jfItems
 end
 
 --- Render the JSON Feed to a string.
@@ -64,11 +61,11 @@ end
 local function render(records, profileData, renderItemText)
     local profileName = (#profileData.displayName > 0) and profileData.displayName or profileData.handle
     local title = profileName .. " (Bluesky)"
-    local profileLink = Bsky.uri.profile.fromDid(profileData.did)
+    local profileLink = Bsky.util.didToProfileHttpUri(profileData.did)
     local authorName = profileData.handle
     if #profileData.displayName > 0 then
         authorName = string.format(
-            "%s (%s)",
+            "%s @%s",
             profileData.displayName,
             profileData.handle
         )

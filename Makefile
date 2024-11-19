@@ -29,12 +29,15 @@ CSSO_PATH := $(shell which csso)
 
 build: $(OUTPUT)
 
+# This comes after build so that the build target is still the default.
+include Makefile.secret
+
 clean:
 	rm -r $(SRV_DIR) $(TESTS_DIR)
 	rm -f $(OUTPUT) $(TEST_REDBEAN)
 
 check: $(TEST_REDBEAN)
-	DA_CLIENT_ID=1 DA_CLIENT_SECRET=1 IB_USERNAME=1 IB_PASSWORD=1 ./$< -i test/test.lua
+	./$< -i test/main.lua
 
 test: check
 
