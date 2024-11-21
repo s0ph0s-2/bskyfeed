@@ -36,6 +36,10 @@ local facetMap = {
 ---@param embed BskyEmbed
 ---@return string
 local function mapExternalEmbed(embed)
+    local external = (embed.media or embed).external
+    if not external then
+        return errorTag("(Empty external embed?)")
+    end
     ---@cast embed BskyExternalView
     return Xml.tag("hr", true)
         .. Xml.tag(
@@ -44,16 +48,16 @@ local function mapExternalEmbed(embed)
             Xml.tag(
                 "a",
                 false,
-                { href = embed.external.uri },
-                Xml.tag("h3", false, Xml.text(embed.external.title)),
+                { href = external.uri },
+                Xml.tag("h3", false, Xml.text(external.title)),
                 Xml.tag(
                     "span",
                     false,
                     { style = "font-size:smaller" },
-                    Xml.text(embed.external.uri)
+                    Xml.text(external.uri)
                 )
             ),
-            Xml.tag("p", false, Xml.text(embed.external.description))
+            Xml.tag("p", false, Xml.text(external.description))
         )
 end
 
@@ -447,8 +451,14 @@ embedMap["app.bsky.embed.recordWithMedia#view"] = function(embed, authors)
     local result = ""
     if embed and embed.media.playlist then
         result = mapVideoEmbed(embed)
-    else
+    elseif embed.media.external then
+        result = mapExternalEmbed(embed)
+    elseif embed.media.images then
         result = mapImagesEmbed(embed)
+    else
+        result = errorTag(
+            "(Unsupported embedded media type: %s)" % { embed.media["$type"] }
+        )
     end
     result = result .. mapRecordEmbed(embed, authors)
     return result
