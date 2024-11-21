@@ -367,9 +367,9 @@ local function renderFeedReply(reply, authors)
         return ""
     end
     local result = {}
-    if reply.root and reply.root.cid ~= reply.parent.cid then
+    if reply.root and reply.root.uri ~= reply.parent.uri then
         result[#result + 1] = renderFeedReplyView(reply.root, authors)
-        local grandparent = reply.parent.record.parent
+        local grandparent = reply.parent.record.reply.parent
         if grandparent and grandparent.uri ~= reply.root.uri then
             result[#result + 1] = Xml.tag("p", false, "⋮")
         end
