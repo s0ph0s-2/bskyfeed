@@ -15,11 +15,10 @@ local function assembleUri(protocol, host, path, params)
     if params then
         local paramsPairs = {}
         for param, value in pairs(params) do
-            table.insert(paramsPairs, string.format(
-                "%s=%s",
-                EscapeParam(param),
-                EscapeParam(value)
-            ))
+            table.insert(
+                paramsPairs,
+                string.format("%s=%s", EscapeParam(param), EscapeParam(value))
+            )
         end
         paramsStr = "?" .. table.concat(paramsPairs, "&")
     end
@@ -47,12 +46,19 @@ end
 --- https://bsky.social/xrpc/METHOD_NAME?PARAM1=value1&PARAM2=value2
 local function assembleXrpcUri(xrpc_method, params)
     if type(xrpc_method) ~= "string" then
-        error("assembleUri: xrpc_method must be string, not " .. type(xrpc_method))
+        error(
+            "assembleUri: xrpc_method must be string, not " .. type(xrpc_method)
+        )
     end
     if type(params) ~= "table" and params ~= nil then
         error("assembleUri: params must be table or nil, not " .. type(params))
     end
-    local result = assembleUri("https", "public.api.bsky.app", "/xrpc/" .. xrpc_method, params)
+    local result = assembleUri(
+        "https",
+        "public.api.bsky.app",
+        "/xrpc/" .. xrpc_method,
+        params
+    )
     return result
 end
 
@@ -96,15 +102,15 @@ local function errOnRateLimit(headers)
         threshold = 1
     end
     if random > threshold then
-        error({
+        error {
             status = 429,
             status_msg = "Too Many Requests",
             headers = {
                 ["X-Bsky-RateLimit-Limit"] = limit,
-                ["X-Bsky-RateLimit-Remaining"] = remaining
+                ["X-Bsky-RateLimit-Remaining"] = remaining,
             },
-            body = "Please try again after " .. later .. "."
-        })
+            body = "Please try again after " .. later .. ".",
+        }
         return false
     else
         return true
@@ -145,7 +151,7 @@ local function request(http_method, xrpc_method, params, headers, body)
     local status, resp_headers, resp_body = Fetch(uri, {
         method = http_method,
         body = body,
-        headers = headers
+        headers = headers,
     })
     if type(resp_headers) == "string" then
         return nil, resp_headers, nil
@@ -183,7 +189,7 @@ local function getJsonOrErr(method, params, headers)
     )
     local uri = assembleXrpcUri(method, params)
     local status, resp_headers, resp_body = Fetch(uri, {
-        headers = headers
+        headers = headers,
     })
     if type(resp_headers) == "string" or not resp_body then
         return nil, resp_headers
@@ -211,11 +217,13 @@ end
 local function atPostUriToXrpcPostUri(at_uri)
     local m, did, _, post_id = AT_URI:search(at_uri) -- luacheck: ignore
     if m then
-        return "ok", "com.atproto.repo.getRecord", {
-            repo = did,
-            collection = "app.bsky.feed.post",
-            rkey = post_id
-        }
+        return "ok",
+            "com.atproto.repo.getRecord",
+            {
+                repo = did,
+                collection = "app.bsky.feed.post",
+                rkey = post_id,
+            }
     else
         return nil, "no regex matches"
     end
@@ -231,7 +239,8 @@ end
 --- @return (string) The portion of input_str after the split point substr.
 local function split(input_str, split_point)
     local start_idx, end_idx = string.find(input_str, split_point, 1, true)
-    return string.sub(input_str, 1, start_idx), string.sub(input_str, end_idx + 1)
+    return string.sub(input_str, 1, start_idx),
+        string.sub(input_str, end_idx + 1)
 end
 
 --- Create an HTTP URI for an in-feed image.
@@ -243,12 +252,13 @@ local function makeFeedImageHttpUri(post_atproto_uri, image_id)
     local m, did, _, _ = AT_URI:search(post_atproto_uri) -- luacheck: ignore
     if m then
         -- local _, format = split(content_type, "/")
-        return m, string.format(
-            "https://cdn.bsky.app/img/feed_thumbnail/plain/%s/%s@%s",
-            did,
-            image_id,
-            "jpeg"
-        )
+        return m,
+            string.format(
+                "https://cdn.bsky.app/img/feed_thumbnail/plain/%s/%s@%s",
+                did,
+                image_id,
+                "jpeg"
+            )
     else
         return nil, did
     end
@@ -263,10 +273,11 @@ local function makeBlobHttpUri(post_atproto_uri, blob_link)
     local m, did, _, _ = AT_URI:search(post_atproto_uri) -- luacheck: ignore
     if m then
         -- local _, format = split(content_type, "/")
-        return m, assembleXrpcUri("com.atproto.sync.getBlob", {
-            did = did,
-            cid = blob_link,
-        })
+        return m,
+            assembleXrpcUri("com.atproto.sync.getBlob", {
+                did = did,
+                cid = blob_link,
+            })
     else
         return nil, did
     end
@@ -280,15 +291,15 @@ end
 local function makeVideoThumbnailHttpUri(post_atproto_uri, media_id)
     local m, did, _, _ = AT_URI:search(post_atproto_uri) -- luacheck: ignore
     if m then
-        return m, EncodeUrl {
-            scheme = "https",
-            host = "video.bsky.app",
-            path = "/watch/%s/%s/thumbnail.jpg"
-                % {
+        return m,
+            EncodeUrl {
+                scheme = "https",
+                host = "video.bsky.app",
+                path = "/watch/%s/%s/thumbnail.jpg" % {
                     did,
                     media_id,
                 },
-        }
+            }
     end
     return nil, did
 end
@@ -302,11 +313,12 @@ end
 local function makeVideoPlaylistHttpUri(post_atproto_uri, media_id)
     local m, did, _, _ = AT_URI:search(post_atproto_uri)
     if m then
-        return m, EncodeUrl {
-            scheme = "https",
-            host = "video.bsky.app",
-            path = "/watch/%s/%s/playlist.m3u8" % { did, media_id },
-        }
+        return m,
+            EncodeUrl {
+                scheme = "https",
+                host = "video.bsky.app",
+                path = "/watch/%s/%s/playlist.m3u8" % { did, media_id },
+            }
     end
     return nil, did
 end
@@ -347,9 +359,10 @@ local function getHandleAndDid(identifier)
     if not identifier then
         return nil
     end
-    local ok, repoDescription = pcall(getJsonOrErr, "com.atproto.repo.describeRepo", {
-        repo = identifier
-    })
+    local ok, repoDescription =
+        pcall(getJsonOrErr, "com.atproto.repo.describeRepo", {
+            repo = identifier,
+        })
     if not ok or not repoDescription then
         return nil, nil
     end
@@ -516,7 +529,11 @@ Bsky.util = {}
 function Bsky.util.atUriToWebUri(at_uri)
     local m, did, _, post_id = AT_URI:search(at_uri) -- luacheck: ignore
     if m then
-        return string.format("https://bsky.app/profile/%s/post/%s", did, post_id)
+        return string.format(
+            "https://bsky.app/profile/%s/post/%s",
+            did,
+            post_id
+        )
     else
         return at_uri
     end

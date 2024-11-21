@@ -36,12 +36,15 @@ function Cache:new(o)
 end
 
 function Cache:getProfile(did)
-    local result, err = self.conn:fetchOne([[SELECT
+    local result, err = self.conn:fetchOne(
+        [[SELECT
             did, handle, displayName, description, avatar, strftime('%s', cachedAt) AS cachedAt
         FROM
             ProfileCache
         WHERE
-            did = ?;]], did)
+            did = ?;]],
+        did
+    )
     if not result then
         return err
     end
@@ -51,7 +54,8 @@ function Cache:getProfile(did)
 end
 
 function Cache:putProfile(did, handle, displayName, description, avatar)
-    return self.conn:execute([[INSERT OR REPLACE INTO ProfileCache (
+    return self.conn:execute(
+        [[INSERT OR REPLACE INTO ProfileCache (
             did, handle, displayName, description, avatar, cachedAt
         ) VALUES (
             ?,   ?,      ?,           ?,           ?,      datetime('now')
@@ -65,7 +69,8 @@ function Cache:putProfile(did, handle, displayName, description, avatar)
 end
 
 function Cache:getPost(uri)
-    local result, err = self.conn:fetchOne([[SELECT
+    local result, err = self.conn:fetchOne(
+        [[SELECT
             postBlob, strftime('%s', cachedAt) AS cachedAt
         FROM
             PostCache
@@ -86,7 +91,8 @@ function Cache:putPost(uri, postBlob)
     if type(postBlob) ~= "string" then
         postBlob = EncodeJson(postBlob)
     end
-    return self.conn:execute([[INSERT OR REPLACE INTO PostCache (
+    return self.conn:execute(
+        [[INSERT OR REPLACE INTO PostCache (
             uri, postBlob, cachedAt
         ) VALUES (
             ?,   ?,        datetime('now')
@@ -98,7 +104,8 @@ end
 
 function Cache:clean(older_than_secs)
     Log(kLogVerbose, "Cleaning post cache")
-    local post_ok, post_err = self.conn:execute([[DELETE FROM
+    local post_ok, post_err = self.conn:execute(
+        [[DELETE FROM
             PostCache
         WHERE
             (strftime('%s', 'now') - strftime('%s', cachedAt)) > ?;]],
@@ -108,7 +115,8 @@ function Cache:clean(older_than_secs)
         Log(kLogInfo, post_err)
     end
     Log(kLogVerbose, "Cleaning profile cache")
-    local profile_ok, profile_err = self.conn:execute([[DELETE FROM
+    local profile_ok, profile_err = self.conn:execute(
+        [[DELETE FROM
             ProfileCache
         WHERE
             (strftime('%s', 'now') - strftime('%s', cachedAt)) > ?;]],

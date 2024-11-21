@@ -38,7 +38,11 @@
 --- @param value string The attribute value to escape.
 --- @return string A new string containing similar data, suitably escaped.
 local function escapeAttr(value)
-    local result, _ = string.gsub(value, '["\'&]', { ["'"] = "&#39;", ['"'] = "&quot;", ["&"] = "&amp;" })
+    local result, _ = string.gsub(
+        value,
+        "[\"'&]",
+        { ["'"] = "&#39;", ['"'] = "&quot;", ["&"] = "&amp;" }
+    )
     return result
 end
 
@@ -80,7 +84,9 @@ local function tag(tagName, selfClosing, attrsOrFirstChild, ...)
     if string.match(tagName, "%s") then
         error("tag: tagName cannot contain whitespace")
     end
-    if selfClosing and (#children > 0 or type(attrsOrFirstChild) == "string") then
+    if
+        selfClosing and (#children > 0 or type(attrsOrFirstChild) == "string")
+    then
         error("tag: self closing tags cannot have children")
     end
 
@@ -94,7 +100,9 @@ local function tag(tagName, selfClosing, attrsOrFirstChild, ...)
         for key, value in pairs(attrsOrFirstChild) do
             table.insert(pairedAttrs, { key, value })
         end
-        table.sort(pairedAttrs, function(a, b) return a[1] < b[1] end)
+        table.sort(pairedAttrs, function(a, b)
+            return a[1] < b[1]
+        end)
         for _, pair in ipairs(pairedAttrs) do
             if pair[2] and type(pair[2]) ~= "boolean" then
                 table.insert(
@@ -111,7 +119,12 @@ local function tag(tagName, selfClosing, attrsOrFirstChild, ...)
     if selfClosing then
         return opening .. "/>"
     else
-        return string.format("%s>%s</%s>", opening, table.concat(children), tagName)
+        return string.format(
+            "%s>%s</%s>",
+            opening,
+            table.concat(children),
+            tagName
+        )
     end
 end
 
@@ -119,5 +132,5 @@ return {
     escapeAttr = escapeAttr,
     text = text,
     cdata = cdata,
-    tag = tag
+    tag = tag,
 }

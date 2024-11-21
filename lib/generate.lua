@@ -14,7 +14,11 @@ local function handle(r)
     identifier = string.lower(identifier)
     feed_type = string.lower(feed_type)
     if feed_type ~= "xml" and feed_type ~= "json" then
-        return Fm.serveError(400, "Bad Request", "feed_type must be either 'xml' or 'json'.")
+        return Fm.serveError(
+            400,
+            "Bad Request",
+            "feed_type must be either 'xml' or 'json'."
+        )
     end
     local no_replies = r.params.no_replies ~= nil
     local yes_reposts = r.params.yes_reposts ~= nil
@@ -26,7 +30,9 @@ local function handle(r)
             return Fm.serveError(
                 404,
                 "Not Found",
-                "No user matching %s could be found. Double-check that you got the right data, then try again." % { identifier })
+                "No user matching %s could be found. Double-check that you got the right data, then try again."
+                    % { identifier }
+            )
         end
         did = fetchedDid.did
     end

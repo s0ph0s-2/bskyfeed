@@ -4,16 +4,15 @@ end
 
 local function mapMentionFacet(text, feature)
     return Xml.tag(
-        "a", false, { href = "https://bsky.app/profile/" .. feature.did },
+        "a",
+        false,
+        { href = "https://bsky.app/profile/" .. feature.did },
         Xml.text(text)
     )
 end
 
 local function mapLinkFacet(text, feature)
-    return Xml.tag(
-        "a", false, { href = feature.uri },
-        Xml.text(text)
-    )
+    return Xml.tag("a", false, { href = feature.uri }, Xml.text(text))
 end
 
 local function mapHashtagFacet(text, feature, handle)
@@ -22,13 +21,10 @@ local function mapHashtagFacet(text, feature, handle)
         host = "bsky.app",
         path = "/hashtag/" .. EscapePath(feature.tag),
         params = {
-            {"author", handle },
+            { "author", handle },
         },
     }
-    return Xml.tag(
-        "a", false, { href = tagSearch },
-        Xml.text(text)
-    )
+    return Xml.tag("a", false, { href = tagSearch }, Xml.text(text))
 end
 
 local facetMap = {
@@ -41,18 +37,24 @@ local facetMap = {
 ---@return string
 local function mapExternalEmbed(embed)
     ---@cast embed BskyExternalView
-    return Xml.tag("hr", true) .. Xml.tag(
-        "div", false,
-        Xml.tag(
-            "a", false, { href = embed.external.uri },
-            Xml.tag("h3", false, Xml.text(embed.external.title)),
+    return Xml.tag("hr", true)
+        .. Xml.tag(
+            "div",
+            false,
             Xml.tag(
-                "span", false, { style = "font-size:smaller" },
-                Xml.text(embed.external.uri)
-            )
-        ),
-        Xml.tag("p", false, Xml.text(embed.external.description))
-    )
+                "a",
+                false,
+                { href = embed.external.uri },
+                Xml.tag("h3", false, Xml.text(embed.external.title)),
+                Xml.tag(
+                    "span",
+                    false,
+                    { style = "font-size:smaller" },
+                    Xml.text(embed.external.uri)
+                )
+            ),
+            Xml.tag("p", false, Xml.text(embed.external.description))
+        )
 end
 
 ---@param embed BskyEmbed
@@ -64,7 +66,10 @@ local function mapImagesEmbed(embed)
     end
     local images = (embed.media or embed).images
     if not images then
-        Log(kLogWarn, "No images field in images embed? Embed: " .. EncodeJson(embed))
+        Log(
+            kLogWarn,
+            "No images field in images embed? Embed: " .. EncodeJson(embed)
+        )
         return ""
     end
     ---@cast embed BskyImagesView
@@ -82,9 +87,9 @@ local function mapImagesEmbed(embed)
     for i = 1, #images do
         local image = images[i]
         local attrs = {
-                alt = image.alt,
-                src = image.thumb,
-                style = style
+            alt = image.alt,
+            src = image.thumb,
+            style = style,
         }
         if image.aspectRatio then
             attrs.width = image.aspectRatio.width
@@ -93,9 +98,10 @@ local function mapImagesEmbed(embed)
         local imgTag = Xml.tag("img", true, attrs)
         imageTags[#imageTags + 1] = imgTag
     end
-    return Xml.tag("hr", true) .. Xml.tag("div", false, {
-        style = "display:flex;flex-wrap:wrap;align-items:flex-start"
-    }, table.unpack(imageTags))
+    return Xml.tag("hr", true)
+        .. Xml.tag("div", false, {
+            style = "display:flex;flex-wrap:wrap;align-items:flex-start",
+        }, table.unpack(imageTags))
 end
 
 ---@param embed BskyEmbed
@@ -106,16 +112,19 @@ local function mapVideoEmbed(embed)
         actualEmbed = embed.media
     end
     if not actualEmbed or not actualEmbed.playlist then
-        Log(kLogWarn, "No playlist field in video embed? Item: " .. EncodeJson(embed))
+        Log(
+            kLogWarn,
+            "No playlist field in video embed? Item: " .. EncodeJson(embed)
+        )
         return ""
     end
     ---@cast embed BskyVideoView
     local attrs = {
-            alt = actualEmbed.alt,
-            src = actualEmbed.playlist,
-            poster = actualEmbed.thumbnail,
-            loop = "true",
-            controls = "true",
+        alt = actualEmbed.alt,
+        src = actualEmbed.playlist,
+        poster = actualEmbed.thumbnail,
+        loop = "true",
+        controls = "true",
     }
     if actualEmbed.aspectRatio then
         attrs.width = actualEmbed.aspectRatio.width
@@ -125,14 +134,9 @@ local function mapVideoEmbed(embed)
         "video",
         false,
         attrs,
-        Xml.tag(
-            "a",
-            false,
-            {
-                href = actualEmbed.playlist
-            },
-            Xml.text("Download video file")
-        )
+        Xml.tag("a", false, {
+            href = actualEmbed.playlist,
+        }, Xml.text("Download video file"))
     )
     Log(kLogDebug, videoTag)
     return Xml.tag("hr", true) .. videoTag
@@ -152,18 +156,22 @@ local function generateAuthorBlock(author)
     local authorProfileLink = EncodeUrl {
         scheme = "https",
         host = "bsky.app",
-        path = "/profile/" .. author.did
+        path = "/profile/" .. author.did,
     }
     local displayNamePreifx = ""
     if author.displayName and #author.displayName > 0 then
         displayNamePreifx = Xml.tag(
             "b",
             false,
-            Xml.text(#author.displayName > 1 and author.displayName or author.handle)
+            Xml.text(
+                #author.displayName > 1 and author.displayName or author.handle
+            )
         ) .. " "
     end
     return Xml.tag(
-        "a", false, { href = authorProfileLink },
+        "a",
+        false,
+        { href = authorProfileLink },
         displayNamePreifx,
         Xml.text("@" .. author.handle)
     )
@@ -180,17 +188,20 @@ local function postHeader(post, authors)
     local dateRfc1123 = Date(createdAt):fmt("${rfc1123}")
     local url = Bsky.util.atUriToWebUri(post.uri)
     local timeLink = Xml.tag(
-        "small", false, Xml.tag(
-            "a", false, { href = url }, Xml.text("Posted: " .. dateRfc1123)
-        )
+        "small",
+        false,
+        Xml.tag("a", false, { href = url }, Xml.text("Posted: " .. dateRfc1123))
     )
     return author .. Xml.tag("br", true) .. timeLink
 end
 
 local function linkToSkyview(postUri)
     return Xml.tag(
-        "p", false, Xml.tag(
-            "i", false,
+        "p",
+        false,
+        Xml.tag(
+            "i",
+            false,
             Xml.text("("),
             Xml.tag("a", false, {
                 href = EncodeUrl {
@@ -198,13 +209,11 @@ local function linkToSkyview(postUri)
                     host = "skyview.social",
                     path = "/",
                     params = {
-                        {"url",  postUri },
+                        { "url", postUri },
                     },
-                }
-            },
-            Xml.text("see more on skyview.social")
-        ),
-        Xml.text(")")
+                },
+            }, Xml.text("see more on skyview.social")),
+            Xml.text(")")
         )
     )
 end
@@ -231,14 +240,17 @@ local function renderFeedItemText(postView)
     end
     local record = postView.value or postView.record
     if not record then
-        Log(kLogWarn, "No record in feed item? Full view: " .. EncodeJson(postView))
+        Log(
+            kLogWarn,
+            "No record in feed item? Full view: " .. EncodeJson(postView)
+        )
         return ""
     end
     local text = record.text
     if not text or #text < 1 then
         return ""
     end
-    local output = {"<p>"}
+    local output = { "<p>" }
     local facetIdx = 1
     local segmentStartIdx = 1
     local state = TextStates.text
@@ -247,10 +259,12 @@ local function renderFeedItemText(postView)
         local facet = (record.facets or {})[facetIdx]
         if state == TextStates.text then
             if chr == "\n" then
-                output[#output + 1] = sliceSegment(text, segmentStartIdx, byteIdx - 1)
+                output[#output + 1] =
+                    sliceSegment(text, segmentStartIdx, byteIdx - 1)
                 state = TextStates.oneNewline
             elseif facet and (byteIdx - 1) == facet.index.byteStart then
-                output[#output + 1] = sliceSegment(text, segmentStartIdx, byteIdx - 1)
+                output[#output + 1] =
+                    sliceSegment(text, segmentStartIdx, byteIdx - 1)
                 segmentStartIdx = byteIdx
                 state = TextStates.facet
             end
@@ -276,9 +290,16 @@ local function renderFeedItemText(postView)
                     local facetMapper = facetMap[feature["$type"]]
                     if facetMapper then
                         -- TODO: what if there are multiple features in a facet?
-                        output[#output + 1] = facetMapper(facetText, facet.features[featureIdx], postView.author.handle)
+                        output[#output + 1] = facetMapper(
+                            facetText,
+                            facet.features[featureIdx],
+                            postView.author.handle
+                        )
                     else
-                        Log(kLogWarn, "Unsupported facet feature: " .. feature["$type"])
+                        Log(
+                            kLogWarn,
+                            "Unsupported facet feature: " .. feature["$type"]
+                        )
                     end
                 end
                 segmentStartIdx = byteIdx + 1
@@ -307,7 +328,11 @@ local function renderFeedEmbed(embed, authors)
         return embedMapper(embed, authors)
     else
         Log(kLogWarn, "Unrecognized embed type: " .. tostring(embedType))
-        return Xml.tag("p", false, Xml.text("Unsupported embed type: " .. embedType))
+        return Xml.tag(
+            "p",
+            false,
+            Xml.text("Unsupported embed type: " .. embedType)
+        )
     end
 end
 
@@ -360,7 +385,7 @@ end
 ---@return Profile[] The authors of the post.  The primary feed author is always first, followed by the profiles of the people who are being quoted or replied to.
 local function renderFeedItem(item, profileData)
     local pieces = {}
-    local authors = { profileData, }
+    local authors = { profileData }
     -- Replies
     pieces[#pieces + 1] = renderFeedReply(item.reply, authors)
     -- Text (and facets)
@@ -368,8 +393,11 @@ local function renderFeedItem(item, profileData)
     -- Embeds
     pieces[#pieces + 1] = renderFeedEmbed(item.post.embed, authors)
     -- Repost authorship
-    if item.reason and item.reason["$type"] == "app.bsky.feed.defs#reasonRepost" then
-        authors = { item.post.author, }
+    if
+        item.reason
+        and item.reason["$type"] == "app.bsky.feed.defs#reasonRepost"
+    then
+        authors = { item.post.author }
     end
     return table.concat(pieces), authors
 end
@@ -389,7 +417,7 @@ local function mapRecordEmbed(embed, authors)
     local type = record["$type"]
     if not type or not SUPPORTED_EMBEDDED_RECORD_TYPES[type] then
         return errorTag("(Unsupported embedded record type: %s)" % {
-            tostring(type)
+            tostring(type),
         })
     end
     -- TODO: multiple authors
@@ -402,14 +430,11 @@ local function mapRecordEmbed(embed, authors)
         embeddedPostParts[#embeddedPostParts + 1] = postHeader(record, authors)
         embeddedPostParts[#embeddedPostParts + 1] = renderFeedItemText(record)
         for i = 1, #(record.embeds or {}) do
-            embeddedPostParts[#embeddedPostParts + 1] = renderFeedEmbed(record.embeds[i], authors)
+            embeddedPostParts[#embeddedPostParts + 1] =
+                renderFeedEmbed(record.embeds[i], authors)
         end
     end
-    return Xml.tag(
-        "blockquote",
-        false,
-        table.unpack(embeddedPostParts)
-    )
+    return Xml.tag("blockquote", false, table.unpack(embeddedPostParts))
 end
 
 -- This needs to be done down here because mapRecordEmbed relies on the
@@ -418,7 +443,7 @@ end
 embedMap["app.bsky.embed.record#view"] = mapRecordEmbed
 ---@param embed BskyEmbed
 ---@param authors string[]
-embedMap["app.bsky.embed.recordWithMedia#view"] = function (embed, authors)
+embedMap["app.bsky.embed.recordWithMedia#view"] = function(embed, authors)
     local result = ""
     if embed and embed.media.playlist then
         result = mapVideoEmbed(embed)
@@ -448,11 +473,11 @@ local function getProfile(user)
         description = "This user couldn't be found",
         avatar = nil,
         handle = "",
-        did = user
+        did = user,
     }
 
     if not profileData then
-        Log(kLogWarn, "Unable to fetch user profile: %s" % {err})
+        Log(kLogWarn, "Unable to fetch user profile: %s" % { err })
         return unknownUser
     end
     if not profileData then
@@ -489,18 +514,18 @@ local function handle(r, user, feedType)
     local noReplies = r.params.no_replies ~= nil
     local noReposts = r.params.yes_reposts == nil
     if feedType ~= "rss" and feedType ~= "jsonfeed" then
-        ServeError(400,  "Feed type must be 'rss' or 'jsonfeed', not " .. feedType)
+        ServeError(
+            400,
+            "Feed type must be 'rss' or 'jsonfeed', not " .. feedType
+        )
         return
     end
-    local postTable, err = Bsky.getAuthorFeed(
-        user,
-        {
-            limit = noReposts and 40 or 20,
-            filter = noReplies and "posts_no_replies" or "posts_with_replies",
-        }
-    )
+    local postTable, err = Bsky.getAuthorFeed(user, {
+        limit = noReposts and 40 or 20,
+        filter = noReplies and "posts_no_replies" or "posts_with_replies",
+    })
     if not postTable then
-        Log(kLogWarn, "%s" % {err})
+        Log(kLogWarn, "%s" % { err })
         Fm.serveError(500, "No response from Bluesky")
         return
     end
@@ -509,11 +534,17 @@ local function handle(r, user, feedType)
         local filtered = {}
         for i = 1, #postTable.feed do
             local item = postTable.feed[i]
-            if not item.reason or item.reason["$type"] ~= "app.bsky.feed.defs#reasonRepost" then
+            if
+                not item.reason
+                or item.reason["$type"] ~= "app.bsky.feed.defs#reasonRepost"
+            then
                 filtered[#filtered + 1] = item
             end
         end
-        Log(kLogDebug, "Pre-filter: %d; post-filter: %d" % { #postTable.feed, #filtered })
+        Log(
+            kLogDebug,
+            "Pre-filter: %d; post-filter: %d" % { #postTable.feed, #filtered }
+        )
         postTable.feed = filtered
     end
     local profileData = getProfile(user)

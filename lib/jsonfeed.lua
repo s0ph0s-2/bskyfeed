@@ -26,16 +26,13 @@ local function generateItems(records, profileData, renderItemText)
         for _, author in ipairs(itemAuthors) do
             local authorStr = author.handle
             if #author.displayName > 0 then
-                authorStr = string.format(
-                    "%s @%s",
-                    author.displayName,
-                    author.handle
-                )
+                authorStr =
+                    string.format("%s @%s", author.displayName, author.handle)
             end
             table.insert(authors, {
                 name = authorStr,
                 url = Bsky.util.didToProfileHttpUri(author.did),
-                avatar = author.avatar
+                avatar = author.avatar,
             })
         end
         local jfItem = {
@@ -59,16 +56,15 @@ end
 --- @param renderItemText (function) A function which produces a string with HTML text for the feed item.
 --- @return (string) A valid JSON instance containing JSON Feed data describing the feed.
 local function render(records, profileData, renderItemText)
-    local profileName = (#profileData.displayName > 0) and profileData.displayName or profileData.handle
+    local profileName = (#profileData.displayName > 0)
+            and profileData.displayName
+        or profileData.handle
     local title = profileName .. " (Bluesky)"
     local profileLink = Bsky.util.didToProfileHttpUri(profileData.did)
     local authorName = profileData.handle
     if #profileData.displayName > 0 then
-        authorName = string.format(
-            "%s @%s",
-            profileData.displayName,
-            profileData.handle
-        )
+        authorName =
+            string.format("%s @%s", profileData.displayName, profileData.handle)
     end
     local feed = {
         version = "https://jsonfeed.org/version/1.1",
@@ -77,12 +73,14 @@ local function render(records, profileData, renderItemText)
         feed_url = GetUrl(),
         description = "Posts on Bluesky by " .. profileName,
         icon = profileData.avatar,
-        authors = { {
-            name = authorName,
-            url = profileLink,
-            avatar = profileData.avatar,
-        } },
-        items = generateItems(records, profileData, renderItemText)
+        authors = {
+            {
+                name = authorName,
+                url = profileLink,
+                avatar = profileData.avatar,
+            },
+        },
+        items = generateItems(records, profileData, renderItemText),
     }
     return assert(EncodeJson(feed))
 end

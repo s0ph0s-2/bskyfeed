@@ -42,10 +42,10 @@ check: $(TEST_REDBEAN)
 test: check
 
 check-format:
-	stylua --check src lib test
+	stylua --check src lib/*.lua test
 
 format:
-	stylua src lib test
+	stylua src lib/*.lua test
 
 .PHONY: build clean check check-format test format
 
