@@ -168,7 +168,7 @@ local function generateAuthorBlock(author)
             "b",
             false,
             Xml.text(
-                #author.displayName > 1 and author.displayName or author.handle
+                #author.displayName > 0 and author.displayName or author.handle
             )
         ) .. " "
     end
@@ -520,19 +520,59 @@ local function getProfile(user)
     return justTheGoodParts
 end
 
+local VALID_FILTERS = {
+    posts_no_replies = true,
+    posts_with_replies = true,
+    posts_with_media = true,
+    posts_and_author_threads = true,
+}
+
+function table.keys(t)
+    local result = {}
+    for key, _ in pairs(t) do
+        result[#result + 1] = key
+    end
+    return result
+end
+
 local function handle(r, user, feedType)
     local noReplies = r.params.no_replies ~= nil
     local noReposts = r.params.yes_reposts == nil
+    local filter = r.params.filter
     if feedType ~= "rss" and feedType ~= "jsonfeed" then
-        ServeError(
+        return Fm.serveError(
             400,
+            "Bad Request",
             "Feed type must be 'rss' or 'jsonfeed', not " .. feedType
         )
-        return
+    end
+    if noReplies and filter then
+        return Fm.serveError(
+            400,
+            "Bad Request",
+            "Must provide only one of 'no_replies' and 'filter'; they conflict."
+        )
+    end
+    if filter and not VALID_FILTERS[filter] then
+        return Fm.serveError(
+            400,
+            "Bad Request",
+            "Invalid filter '%s'. Choose one of: %s"
+                % {
+                    filter,
+                    table.concat(table.keys(VALID_FILTERS), ", "),
+                }
+        )
+    end
+    local chosenFilter = "posts_with_replies"
+    if noReplies then
+        chosenFilter = "posts_no_replies"
+    elseif filter then
+        chosenFilter = filter
     end
     local postTable, err = Bsky.getAuthorFeed(user, {
         limit = noReposts and 40 or 20,
-        filter = noReplies and "posts_no_replies" or "posts_with_replies",
+        filter = chosenFilter,
     })
     if not postTable then
         Log(kLogWarn, "%s" % { err })

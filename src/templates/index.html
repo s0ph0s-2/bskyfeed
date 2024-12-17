@@ -20,11 +20,14 @@
           required
         />
       </label>
-      <label>
-        <input type="checkbox" name="no_replies" />
-        <div>
-          Exclude reply posts?
-        </div>
+      <label class="vbox">
+        Post Filters:
+        <select name="filter">
+          <option value="posts_with_replies" selected>Everything</option>
+          <option value="posts_with_media">Only Posts with Media</option>
+          <option value="posts_no_replies">No Replies</option>
+          <option value="posts_and_author_threads">No Replies, unless they’re a thread</option>
+        </select>
       </label>
       <label>
         <input type="checkbox" name="yes_reposts" />
@@ -64,7 +67,7 @@
       </div>
     </form>
     <footer>
-      <a href="https://github.com/s0ph0s-2/bskyfeed">Source Code</a> • Made by
+      <a href="https://github.com/s0ph0s-dog/bskyfeed">Source Code</a> • Made by
       <a href="https://s0ph0s.dog/">s0ph0s</a>
     </footer>
   </body>

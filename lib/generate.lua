@@ -20,7 +20,7 @@ local function handle(r)
             "feed_type must be either 'xml' or 'json'."
         )
     end
-    local no_replies = r.params.no_replies ~= nil
+    local filter = r.params.filter
     local yes_reposts = r.params.yes_reposts ~= nil
 
     local did = identifier
@@ -38,8 +38,8 @@ local function handle(r)
     end
 
     local params = {}
-    if no_replies then
-        table.insert(params, { "no_replies" })
+    if filter then
+        table.insert(params, { "filter", filter })
     end
     if yes_reposts then
         table.insert(params, { "yes_reposts" })

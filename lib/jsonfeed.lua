@@ -25,7 +25,7 @@ local function generateItems(records, profileData, renderItemText)
         local authors = {}
         for _, author in ipairs(itemAuthors) do
             local authorStr = author.handle
-            if #author.displayName > 0 then
+            if author.displayName and #author.displayName > 0 then
                 authorStr =
                     string.format("%s @%s", author.displayName, author.handle)
             end
@@ -35,11 +35,12 @@ local function generateItems(records, profileData, renderItemText)
                 avatar = author.avatar,
             })
         end
+        local date_published = item.post.record.createdAt
         local jfItem = {
             id = uri,
             url = uri,
             content_html = itemText,
-            date_published = item.post.record.createdAt,
+            date_published = date_published,
             authors = authors,
         }
         if item.post.record.langs and item.post.record.langs[0] then

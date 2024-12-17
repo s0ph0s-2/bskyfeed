@@ -12,12 +12,13 @@ local function generateItems(records, profileData, renderItemText)
             return ""
         end
         local uri = Bsky.util.atUriToWebUri(item.post.uri)
-        local pubDate = Date(item.post.record.createdAt):fmt("${rfc1123}")
+        local pubDateRaw = item.post.record.createdAt
+        local pubDate = Date(pubDateRaw):fmt("${rfc1123}")
         local itemText, itemAuthors = renderItemText(item, profileData, uri)
         local authors = ""
         for _, author in ipairs(itemAuthors) do
             local authorStr = author.handle
-            if #author.displayName > 0 then
+            if author.displayName and #author.displayName > 0 then
                 authorStr =
                     string.format("%s @%s", author.displayName, author.handle)
             end
